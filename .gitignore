@@ -172,3 +172,10 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Other
+.DS_Store
+.idea/
+.vscode/
+backburner/
+tests/moves.txt
