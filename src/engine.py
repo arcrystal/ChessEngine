@@ -133,6 +133,7 @@ class Engine:
             (float): Best evaluation score.
         """
         stand_pat = evaluate_board(gs)
+
         if maximizing_player:
             if stand_pat >= beta:
                 return beta
@@ -144,7 +145,9 @@ class Engine:
             if stand_pat < beta:
                 beta = stand_pat
 
-        moves = self.generate_capture_moves(gs)
+        moves = self.generate_capture_moves(gs, include_checks=True)
+
+        moves = self.order_moves(gs, moves)
 
         for move in moves:
             move_info = apply_move(gs, move)
@@ -176,10 +179,16 @@ class Engine:
         """
         moves = generate_legal_moves(gs)
         capture_moves = []
+        king_pos = self.find_king(gs)
+
         for move in moves:
             from_r, from_c, to_r, to_c, promo = move
-            if gs.board[to_r, to_c] != 0:  # Capture detected
+            captured = gs.board[to_r, to_c]
+            if captured != 0:
                 capture_moves.append(move)
+            elif include_checks and self.is_check(gs, move, king_pos):
+                capture_moves.append(move)
+
         return capture_moves
 
     def order_moves(self, gs, moves):
@@ -221,11 +230,51 @@ class Engine:
         from_square = f"{files[from_col]}{8 - from_row}"
         to_square = f"{files[to_col]}{8 - to_row}"
         return f"{from_square} {to_square}"
+    
+    def order_moves(self, gs, moves):
+    """Order moves: captures > promotions > checks > others."""
+    scored_moves = []
+    king_pos = self.find_king(gs)
+
+    for move in moves:
+        from_r, from_c, to_r, to_c, promo = move
+        captured = gs.board[to_r, to_c]
+        score = 0
+
+        if captured != 0:
+            score += 10_000 + abs(captured) - abs(gs.board[from_r, from_c])  # MVV-LVA
+        elif promo != 0:
+            score += 9_000 + promo
+        elif self.is_check(gs, move, king_pos):
+            score += 8_000
+        else:
+            score += 0  # quiet move
+
+        scored_moves.append((score, move))
+
+    scored_moves.sort(reverse=True)
+    return [move for score, move in scored_moves]
+
+def find_king(self, gs):
+    """Find the position of the opponent's king for faster is_check detection."""
+    king = KING if not gs.white_to_move else -KING
+    for r in range(8):
+        for c in range(8):
+            if gs.board[r, c] == king:
+                return (r, c)
+    return (-1, -1)
+
+def is_check(self, gs, move, king_pos):
+    """Rough check detection: does this move attack opponent king square?"""
+    _, _, to_r, to_c, _ = move
+    return (to_r, to_c) == king_pos
         
 
 # --- Example Runner ---
 if __name__ == "__main__":
+    import time
     game = GameState()
-    engine = Engine(max_depth=5)  # Deeper search
-
+    start = time.time()
+    engine = Engine(max_depth=7)  # Deeper search
     best_move = engine.search(game)
+    print(f"Best move found in {round(time.time() - start)}s")
