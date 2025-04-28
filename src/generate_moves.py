@@ -107,13 +107,13 @@ def generate_knight_moves(gs, knights, is_white):
 def generate_bishop_moves(gs, bishops, is_white):
     moves = []
     own_pieces = int(gs.white_occupancy if is_white else gs.black_occupancy)
-    occ = int(gs.white_occupancy | gs.black_occupancy)
+    occupancy = int(gs.white_occupancy | gs.black_occupancy)
 
     bishops = int(bishops)
 
     while bishops:
         from_sq, bishops = pop_lsb(bishops)
-        attacks = int(bishop_attacks(from_sq, occ)) & ~own_pieces
+        attacks = int(bishop_attacks(from_sq, occupancy)) & ~own_pieces
 
         while attacks:
             to_sq, attacks = pop_lsb(attacks)
@@ -124,13 +124,13 @@ def generate_bishop_moves(gs, bishops, is_white):
 def generate_rook_moves(gs, rooks, is_white):
     moves = []
     own_pieces = np.uint64(gs.white_occupancy if is_white else gs.black_occupancy)
-    occ = np.uint64(gs.white_occupancy | gs.black_occupancy)
+    occupancy = np.uint64(gs.white_occupancy | gs.black_occupancy)
 
     rooks = int(rooks)
 
     while rooks:
         from_sq, rooks = pop_lsb(rooks)
-        attacks = np.uint64(rook_attacks(from_sq, occ)) & ~own_pieces
+        attacks = np.uint64(rook_attacks(from_sq, occupancy)) & ~own_pieces
         attack_mask = attacks
 
         while attack_mask:
@@ -142,13 +142,13 @@ def generate_rook_moves(gs, rooks, is_white):
 def generate_queen_moves(gs, queens, is_white):
     moves = []
     own_pieces = np.uint64(gs.white_occupancy if is_white else gs.black_occupancy)
-    occ = np.uint64(gs.white_occupancy | gs.black_occupancy)
+    occupancy = np.uint64(gs.white_occupancy | gs.black_occupancy)
 
     queens = int(queens)  # Convert to normal int
 
     while queens:
         from_sq, queens = pop_lsb(queens)
-        attacks = np.uint64(queen_attacks(from_sq, occ)) & ~own_pieces
+        attacks = np.uint64(queen_attacks(from_sq, occupancy)) & ~own_pieces
         attack_mask = attacks
 
         while attack_mask:
@@ -209,8 +209,8 @@ def generate_all_moves(gs):
     moves = []
     is_white = gs.white_to_move
 
-    moves += generate_pawn_moves(gs, int(gs.white_pawns) if is_white else int(gs.black_pawns), is_white)
-    moves += generate_knight_moves(gs, int(gs.white_knights) if is_white else int(gs.black_knights), is_white)
+    #moves += generate_pawn_moves(gs, int(gs.white_pawns) if is_white else int(gs.black_pawns), is_white)
+    #moves += generate_knight_moves(gs, int(gs.white_knights) if is_white else int(gs.black_knights), is_white)
     moves += generate_bishop_moves(gs, int(gs.white_bishops) if is_white else int(gs.black_bishops), is_white)
     moves += generate_rook_moves(gs, int(gs.white_rooks) if is_white else int(gs.black_rooks), is_white)
     moves += generate_queen_moves(gs, int(gs.white_queens) if is_white else int(gs.black_queens), is_white)

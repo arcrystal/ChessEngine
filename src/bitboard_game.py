@@ -71,12 +71,12 @@ class BitboardGameState:
         enemy_rooks = self.black_rooks if white else self.white_rooks
         enemy_queens = self.black_queens if white else self.white_queens
         enemy_king = self.black_king if white else self.white_king
-        occ = self.white_occupancy | self.black_occupancy
+        occupancy = self.white_occupancy | self.black_occupancy
 
         if np.uint64(pawn_attacks(king_sq, not white)) & np.uint64(enemy_pawns): return True
         if np.uint64(knight_attacks(king_sq)) & np.uint64(enemy_knights): return True
-        if np.uint64(bishop_attacks(king_sq, occ)) & np.uint64(enemy_bishops | enemy_queens): return True
-        if np.uint64(rook_attacks(king_sq, occ)) & np.uint64(enemy_rooks | enemy_queens): return True
+        if np.uint64(bishop_attacks(king_sq, occupancy)) & np.uint64(enemy_bishops | enemy_queens): return True
+        if np.uint64(rook_attacks(king_sq, occupancy)) & np.uint64(enemy_rooks | enemy_queens): return True
         if np.uint64(king_attacks(king_sq)) & np.uint64(enemy_king): return True
         return False
     

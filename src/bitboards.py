@@ -46,8 +46,8 @@ def popcount(x):
 # === Precompute Static Tables ===
 @njit
 def precompute_lookup_tables(n_attacks, k_attacks, white_p_attacks, black_p_attacks):
-    KNIGHT_DELTAS = [(2,1), (1,2), (-1,2), (-2,1), (-2,-1), (-1,-2), (1,-2), (2,-1)]
-    KING_DELTAS = [(1,0), (1,1), (0,1), (-1,1), (-1,0), (-1,-1), (0,-1), (1,-1)]
+    KNIGHT_DELTAS = [(2, 1), (1, 2), (-1, 2), (-2, 1), (-2, -1), (-1, -2), (1, -2), (2, -1)]
+    KING_DELTAS = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
     
     for sq in range(64):
         r = sq // 8
@@ -75,18 +75,62 @@ def precompute_lookup_tables(n_attacks, k_attacks, white_p_attacks, black_p_atta
 
         if r < 7:
             if c > 0:
-                white_pawn_attacks |= square_mask((r+1)*8 + (c-1))
+                white_pawn_attacks |= square_mask((r + 1) * 8 + (c - 1))
             if c < 7:
-                white_pawn_attacks |= square_mask((r+1)*8 + (c+1))
+                white_pawn_attacks |= square_mask((r + 1) * 8 + (c + 1))
         if r > 0:
             if c > 0:
-                black_pawn_attacks |= square_mask((r-1)*8 + (c-1))
+                black_pawn_attacks |= square_mask((r - 1) * 8 + (c - 1))
             if c < 7:
-                black_pawn_attacks |= square_mask((r-1)*8 + (c+1))
+                black_pawn_attacks |= square_mask((r - 1) * 8 + (c + 1))
 
         white_p_attacks[sq] = white_pawn_attacks
         black_p_attacks[sq] = black_pawn_attacks
 
+        # DEBUG: Print the knight, king, and pawn attacks using bitwise manipulation
+        # knight_bin = 0
+        # for i in range(64):
+        #     knight_bin |= ((knight_attacks >> i) & 1) << (63 - i)
+
+        # king_bin = 0
+        # for i in range(64):
+        #     king_bin |= ((king_attacks >> i) & 1) << (63 - i)
+
+        # white_pawn_bin = 0
+        # for i in range(64):
+        #     white_pawn_bin |= ((white_pawn_attacks >> i) & 1) << (63 - i)
+
+        # black_pawn_bin = 0
+        # for i in range(64):
+        #     black_pawn_bin |= ((black_pawn_attacks >> i) & 1) << (63 - i)
+
+        # # Store the result for printing (avoiding 'end' argument)
+        # knight_str = f"Square {sq}: Knight Attacks = "
+        # for i in range(63, -1, -1):
+        #     knight_str += '1' if (knight_bin >> i) & 1 else '0'
+        # knight_str += "\n"
+
+        # king_str = f"Square {sq}: King Attacks = "
+        # for i in range(63, -1, -1):
+        #     king_str += '1' if (king_bin >> i) & 1 else '0'
+        # king_str += "\n"
+
+        # white_pawn_str = f"Square {sq}: White Pawn Attacks = "
+        # for i in range(63, -1, -1):
+        #     white_pawn_str += '1' if (white_pawn_bin >> i) & 1 else '0'
+        # white_pawn_str += "\n"
+
+        # black_pawn_str = f"Square {sq}: Black Pawn Attacks = "
+        # for i in range(63, -1, -1):
+        #     black_pawn_str += '1' if (black_pawn_bin >> i) & 1 else '0'
+        # black_pawn_str += "\n"
+
+        # # Print all the results together
+        # print(knight_str)
+        # print(king_str)
+        # print(white_pawn_str)
+        # print(black_pawn_str)
+        
 @njit
 def generate_mask_rook(square):
     mask = np.uint64(0)
@@ -111,17 +155,17 @@ def generate_mask_bishop(square):
 
 @njit
 def occupancy_from_index(index, mask):
-    occ = np.uint64(0)
+    occupancy = np.uint64(0)
     bit_idx = 0
     for square in range(64):
         if (mask >> square) & 1:
             if (index >> bit_idx) & 1:
-                occ |= np.uint64(1) << np.uint64(square)
+                occupancy |= np.uint64(1) << np.uint64(square)
             bit_idx += 1
-    return occ
+    return occupancy
 
 @njit
-def compute_rook_attacks(square, occ):
+def compute_rook_attacks(square, occupancy):
     attacks = np.uint64(0)
     r, f = divmod(square, 8)
     for dr, df in [(1,0), (-1,0), (0,1), (0,-1)]:
@@ -131,24 +175,40 @@ def compute_rook_attacks(square, occ):
             nf += df
             if not (0 <= nr < 8 and 0 <= nf < 8): break
             attacks |= square_mask(nr*8+nf)
-            if occ & square_mask(nr*8+nf): break
+            if occupancy & square_mask(nr*8+nf): break
     return attacks
 
 @njit
-def compute_bishop_attacks(square, occ):
+def compute_bishop_attacks(square, occupancy):
     attacks = np.uint64(0)
     r, f = divmod(square, 8)
-    for dr, df in [(1,1), (1,-1), (-1,1), (-1,-1)]:
+    
+    # Generate the attack pattern for the bishop
+    for dr, df in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
         nr, nf = r, f
         while True:
             nr += dr
             nf += df
-            if not (0 <= nr < 8 and 0 <= nf < 8):
-                break
+            if not (0 <= nr < 8 and 0 <= nf < 8): break  # Out of bounds
             to_sq = nr * 8 + nf
-            attacks |= np.uint64(1) << np.uint64(to_sq)
-            if (occ >> np.uint64(to_sq)) & np.uint64(1):
-                break
+            attacks |= np.uint64(1) << np.uint64(to_sq)  # Mark this square as attacked
+            
+            # Check if there's a piece on the square
+            if (occupancy >> np.uint64(to_sq)) & np.uint64(1):  
+                break  # Stop if there's a piece (blocking the bishop)
+    
+    # Debug collision detection
+    if square % 9 == 0:
+        bishops_bin = 0
+        for i in range(64):
+            bishops_bin |= ((attacks >> i) & 1) << (63 - i)
+        
+        bishops_str = f"Square {square}: Bishop Attacks = "
+        for i in range(63, -1, -1):
+            bishops_str += '1' if (bishops_bin >> i) & 1 else '0'
+        
+        print(bishops_str)
+    
     return attacks
 
 @njit
@@ -159,17 +219,17 @@ def compute_magic_entries_for_square(sq, rook_magic, bishop_magic):
     rook_entries = []
     rook_bits = popcount(rook_mask)
     for idx in range(1 << rook_bits):
-        occ = occupancy_from_index(idx, rook_mask)
-        magic_idx = ((occ * rook_magic) & np.uint64(0xFFFFFFFFFFFFFFFF)) >> (64 - rook_bits)
-        attack = compute_rook_attacks(sq, occ)
+        occupancy = occupancy_from_index(idx, rook_mask)
+        magic_idx = ((occupancy * rook_magic) & np.uint64(0xFFFFFFFFFFFFFFFF)) >> (64 - rook_bits)
+        attack = compute_rook_attacks(sq, occupancy)
         rook_entries.append((magic_idx, attack))
 
     bishop_entries = []
     bishop_bits = popcount(bishop_mask)
     for idx in range(1 << bishop_bits):
-        occ = occupancy_from_index(idx, bishop_mask)
-        magic_idx = ((occ * bishop_magic) & np.uint64(0xFFFFFFFFFFFFFFFF)) >> (64 - bishop_bits)
-        attack = compute_bishop_attacks(sq, occ)
+        occupancy = occupancy_from_index(idx, bishop_mask)
+        magic_idx = ((occupancy * bishop_magic) & np.uint64(0xFFFFFFFFFFFFFFFF)) >> (64 - bishop_bits)
+        attack = compute_bishop_attacks(sq, occupancy)
         bishop_entries.append((magic_idx, attack))
 
     return rook_mask, bishop_mask, rook_entries, bishop_entries
