@@ -1,4 +1,3 @@
-import numpy as np
 import pytest
 from evaluate_board import evaluate_board
 from game import GameState

@@ -5,7 +5,7 @@ from bitboards import (
     knight_attacks, king_attacks,
     bishop_attacks, rook_attacks, queen_attacks
 )
-from constants import PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING
+from constants import KNIGHT, BISHOP, ROOK, QUEEN
 
 def pop_lsb(bb):
     """Pop least significant bit and return (index, new_bb)."""
@@ -21,9 +21,7 @@ def bitwise_not_64(x):
 # =========== Move Generators ==============
 def generate_pawn_moves(gs, pawns, is_white):
     moves = []
-    
-    pawns = int(pawns)  # <-- Convert to Python int immediately
-    empty = int(~(gs.white_occupancy | gs.black_occupancy))
+    empty = int(~gs.occupied)
     enemy = int(gs.black_occupancy if is_white else gs.white_occupancy)
 
     if is_white:
@@ -91,13 +89,9 @@ def generate_pawn_moves(gs, pawns, is_white):
 def generate_knight_moves(gs, knights, is_white):
     moves = []
     own_pieces = int(gs.white_occupancy if is_white else gs.black_occupancy)
-
-    knights = int(knights)
-
     while knights:
         from_sq, knights = pop_lsb(knights)
-        attacks = int(knight_attacks(from_sq)) & ~own_pieces
-
+        attacks = knight_attacks(from_sq) & ~own_pieces
         while attacks:
             to_sq, attacks = pop_lsb(attacks)
             moves.append((np.int8(from_sq), np.int8(to_sq), np.int8(0)))
@@ -107,13 +101,9 @@ def generate_knight_moves(gs, knights, is_white):
 def generate_bishop_moves(gs, bishops, is_white):
     moves = []
     own_pieces = int(gs.white_occupancy if is_white else gs.black_occupancy)
-    occupancy = int(gs.white_occupancy | gs.black_occupancy)
-
-    bishops = int(bishops)
-
     while bishops:
         from_sq, bishops = pop_lsb(bishops)
-        attacks = int(bishop_attacks(from_sq, occupancy)) & ~own_pieces
+        attacks = bishop_attacks(from_sq, gs.occupied) & ~own_pieces
 
         while attacks:
             to_sq, attacks = pop_lsb(attacks)
@@ -124,13 +114,9 @@ def generate_bishop_moves(gs, bishops, is_white):
 def generate_rook_moves(gs, rooks, is_white):
     moves = []
     own_pieces = np.uint64(gs.white_occupancy if is_white else gs.black_occupancy)
-    occupancy = np.uint64(gs.white_occupancy | gs.black_occupancy)
-
-    rooks = int(rooks)
-
     while rooks:
         from_sq, rooks = pop_lsb(rooks)
-        attacks = np.uint64(rook_attacks(from_sq, occupancy)) & ~own_pieces
+        attacks = np.uint64(rook_attacks(from_sq, gs.occupied)) & ~own_pieces
         attack_mask = attacks
 
         while attack_mask:
@@ -142,13 +128,9 @@ def generate_rook_moves(gs, rooks, is_white):
 def generate_queen_moves(gs, queens, is_white):
     moves = []
     own_pieces = np.uint64(gs.white_occupancy if is_white else gs.black_occupancy)
-    occupancy = np.uint64(gs.white_occupancy | gs.black_occupancy)
-
-    queens = int(queens)  # Convert to normal int
-
     while queens:
         from_sq, queens = pop_lsb(queens)
-        attacks = np.uint64(queen_attacks(from_sq, occupancy)) & ~own_pieces
+        attacks = np.uint64(queen_attacks(from_sq, gs.occupied)) & ~own_pieces
         attack_mask = attacks
 
         while attack_mask:
@@ -177,57 +159,84 @@ def generate_king_moves(gs, king, is_white):
 
 def generate_castling_moves(gs, is_white):
     moves = []
-    occupied = int(gs.white_occupancy | gs.black_occupancy)
+    occupancy = int(gs.occupied)
     if is_white:
         king_sq = 4
         # White kingside castling (e1 to g1)
         if gs.castling_rights[0]:
-            if not (occupied & (square_mask(5) | square_mask(6))):
+            if not (occupancy  & (square_mask(5) | square_mask(6))):
                 if not (gs.is_square_attacked(4, False) or gs.is_square_attacked(5, False) or gs.is_square_attacked(6, False)):
                     moves.append((np.int8(king_sq), np.int8(6), np.int8(0)))
         # White queenside castling (e1 to c1)
         if gs.castling_rights[1]:
-            if not (occupied & (square_mask(1) | square_mask(2) | square_mask(3))):
+            if not (occupancy  & (square_mask(1) | square_mask(2) | square_mask(3))):
                 if not (gs.is_square_attacked(4, False) or gs.is_square_attacked(3, False) or gs.is_square_attacked(2, False)):
                     moves.append((np.int8(king_sq), np.int8(2), np.int8(0)))
     else:
         king_sq = 60
         # Black kingside castling (e8 to g8)
         if gs.castling_rights[2]:
-            if not (occupied & (square_mask(61) | square_mask(62))):
+            if not (occupancy  & (square_mask(61) | square_mask(62))):
                 if not (gs.is_square_attacked(60, True) or gs.is_square_attacked(61, True) or gs.is_square_attacked(62, True)):
                     moves.append((np.int8(king_sq), np.int8(62), np.int8(0)))
         # Black queenside castling (e8 to c8)
         if gs.castling_rights[3]:
-            if not (occupied & (square_mask(57) | square_mask(58) | square_mask(59))):
+            if not (occupancy  & (square_mask(57) | square_mask(58) | square_mask(59))):
                 if not (gs.is_square_attacked(60, True) or gs.is_square_attacked(59, True) or gs.is_square_attacked(58, True)):
                     moves.append((np.int8(king_sq), np.int8(58), np.int8(0)))
                     
     return moves
 
 def generate_all_moves(gs):
-    moves = []
-    is_white = gs.white_to_move
+    if gs.white_to_move:
+        return generate_pawn_moves(gs, int(gs.white_pawns), True) \
+        + generate_knight_moves(gs, int(gs.white_knights), True) \
+        + generate_bishop_moves(gs, int(gs.white_bishops), True) \
+        + generate_rook_moves(gs, int(gs.white_rooks), True) \
+        + generate_queen_moves(gs, int(gs.white_queens), True) \
+        + generate_king_moves(gs, int(gs.white_king), True) \
+        + generate_castling_moves(gs, True)
 
-    #moves += generate_pawn_moves(gs, int(gs.white_pawns) if is_white else int(gs.black_pawns), is_white)
-    #moves += generate_knight_moves(gs, int(gs.white_knights) if is_white else int(gs.black_knights), is_white)
-    moves += generate_bishop_moves(gs, int(gs.white_bishops) if is_white else int(gs.black_bishops), is_white)
-    moves += generate_rook_moves(gs, int(gs.white_rooks) if is_white else int(gs.black_rooks), is_white)
-    moves += generate_queen_moves(gs, int(gs.white_queens) if is_white else int(gs.black_queens), is_white)
-    moves += generate_king_moves(gs, int(gs.white_king) if is_white else int(gs.black_king), is_white)
-    moves += generate_castling_moves(gs, is_white)
-
-    return moves
-
+    return generate_pawn_moves(gs, int(gs.black_pawns), False) \
+    + generate_knight_moves(gs, int(gs.black_knights), False) \
+    + generate_bishop_moves(gs, int(gs.black_bishops), False) \
+    + generate_rook_moves(gs, int(gs.black_rooks), False) \
+    + generate_queen_moves(gs, int(gs.black_queens), False) \
+    + generate_king_moves(gs, int(gs.black_king), False) \
+    + generate_castling_moves(gs, False)
+        
 def generate_all_legal_moves(gs):
     """Generate only *legal* moves (no king left in check)."""
-    moves = generate_all_moves(gs)
     legal_moves = []
     side_to_move = gs.white_to_move
 
-    for move in moves:
-        gs_copy = gs.copy()
-        gs_copy.make_move(move)
-        if not gs_copy.is_in_check(side_to_move):
+    for move in generate_all_moves(gs):
+        print(move)
+        gs.make_move(move)
+        if not gs.is_in_check(side_to_move):
             legal_moves.append(move)
+        
+        gs.undo_move()
+
+
     return legal_moves
+
+def index_to_square(index):
+    """Convert a 0-63 index to a chessboard square in algebraic notation."""
+    rank = (index // 8) + 1
+    file = chr(index % 8 + ord('a'))
+    return f"{file}{rank}"
+
+def get_standard_algebraic(move):
+    """Convert a list of moves from index notation to algebraic notation."""
+    from_sq, to_sq, promo = move
+    from_square_algebraic = index_to_square(from_sq)
+    to_square_algebraic = index_to_square(to_sq)
+    # Adding promotion notation if needed
+    if promo != 0:
+        promo_piece = {KNIGHT: 'N', BISHOP: 'B', ROOK: 'R', QUEEN: 'Q'}
+        move_notation = f"{from_square_algebraic} {to_square_algebraic} {promo_piece}"
+    else:
+        move_notation = f"{from_square_algebraic} {to_square_algebraic}"
+        
+    return move_notation

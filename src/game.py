@@ -1,5 +1,5 @@
 import numpy as np
-from numba import njit, int8, boolean, int16, types
+from numba import int8, boolean, int16
 from numba.experimental import jitclass
 
 # --- Constants ---

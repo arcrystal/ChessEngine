@@ -1,5 +1,4 @@
 from numba import njit
-from numba.typed import List
 
 from engine_utils import generate_legal_moves, apply_move
 from evaluate_board import evaluate_board

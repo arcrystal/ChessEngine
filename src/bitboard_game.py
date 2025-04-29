@@ -1,15 +1,14 @@
 import numpy as np
-import bitboards
 from bitboards import (
-    rank_mask, square_mask,
     pawn_attacks, knight_attacks, king_attacks,
     bishop_attacks, rook_attacks, queen_attacks
 )
-from constants import PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING
+from constants import KNIGHT, BISHOP, ROOK, QUEEN
 
 
 class BitboardGameState:
     def __init__(self):
+        self.move_info = []
         # Piece bitboards
         self.white_pawns = np.uint64(0)
         self.white_knights = np.uint64(0)
@@ -39,24 +38,30 @@ class BitboardGameState:
 
         self._init_starting_position()
 
-    def _init_starting_position(self):
-        # Setup initial position using bitboards
+    def _init_starting_position(self):    
+        # White pawns (A2 to H2)
         self.white_pawns   = np.uint64(0x000000000000FF00)
+        # Black pawns (A7 to H7)
         self.black_pawns   = np.uint64(0x00FF000000000000)
-
+        # White rooks (A1 and H1)
         self.white_rooks   = np.uint64(0x0000000000000081)
+        # Black rooks (A8 and H8)
         self.black_rooks   = np.uint64(0x8100000000000000)
-
+        # White knights (B1 and G1)
         self.white_knights = np.uint64(0x0000000000000042)
+        # Black knights (B8 and G8)
         self.black_knights = np.uint64(0x4200000000000000)
-
+        # White bishops (C1 and F1)
         self.white_bishops = np.uint64(0x0000000000000024)
+        # Black bishops (C8 and F8)
         self.black_bishops = np.uint64(0x2400000000000000)
-
+        # White queens (D1)
         self.white_queens  = np.uint64(0x0000000000000008)
+        # Black queens (D8)
         self.black_queens  = np.uint64(0x0800000000000000)
-
+        # White king (E1)
         self.white_king    = np.uint64(0x0000000000000010)
+        # Black king (E8)
         self.black_king    = np.uint64(0x1000000000000000)
 
         self.update_occupancies()
@@ -81,7 +86,6 @@ class BitboardGameState:
         return False
     
     def attack_map(self, is_white):
-        occupied = self.white_occupancy | self.black_occupancy
         attacks = np.uint64(0)
 
         if is_white:
@@ -111,17 +115,17 @@ class BitboardGameState:
 
         while bishops:
             sq = (bishops & -bishops).bit_length() - 1
-            attacks |= bishop_attacks(sq, occupied)
+            attacks |= bishop_attacks(sq, self.occupied)
             bishops &= bishops - 1
 
         while rooks:
             sq = (rooks & -rooks).bit_length() - 1
-            attacks |= rook_attacks(sq, occupied)
+            attacks |= rook_attacks(sq, self.occupied)
             rooks &= rooks - 1
 
         while queens:
             sq = (queens & -queens).bit_length() - 1
-            attacks |= queen_attacks(sq, occupied)
+            attacks |= queen_attacks(sq, self.occupied)
             queens &= queens - 1
 
         if king:
@@ -132,6 +136,28 @@ class BitboardGameState:
         
     def make_move(self, move):
         """Apply a move to the current state."""
+        self.move_info.append((
+            self.white_pawns,
+            self.white_knights,
+            self.white_bishops,
+            self.white_rooks,
+            self.white_queens,
+            self.white_king,
+            self.black_pawns,
+            self.black_knights,
+            self.black_bishops,
+            self.black_rooks,
+            self.black_queens,
+            self.black_king,
+            self.white_occupancy,
+            self.black_occupancy,
+            self.occupied,
+            self.white_to_move,
+            self.castling_rights,
+            self.en_passant_target,
+            self.halfmove_clock,
+            self.fullmove_number,
+        ))
         from_sq, to_sq, promo = move
 
         mover_bb = np.uint64(1) << np.uint64(from_sq)
@@ -175,6 +201,34 @@ class BitboardGameState:
         # --- Update occupancies and side
         self.update_occupancies()
         self.white_to_move = not self.white_to_move
+    
+    def undo_move(self):
+        """
+        Undo a move by restoring saved game state.
+        """
+        (
+            self.white_pawns,
+            self.white_knights,
+            self.white_bishops,
+            self.white_rooks,
+            self.white_queens,
+            self.white_king,
+            self.black_pawns,
+            self.black_knights,
+            self.black_bishops,
+            self.black_rooks,
+            self.black_queens,
+            self.black_king,
+            self.white_occupancy,
+            self.black_occupancy,
+            self.occupied,
+            self.white_to_move,
+            self.castling_rights,
+            self.en_passant_target,
+            self.halfmove_clock,
+            self.fullmove_number
+        ) = self.move_info.pop()
+
 
     def update_occupancies(self):
         self.white_occupancy = (
@@ -186,10 +240,6 @@ class BitboardGameState:
             self.black_rooks | self.black_queens | self.black_king
         )
         self.occupied = self.white_occupancy | self.black_occupancy
-        
-    def update_bitboards(self):
-        """Update all occupancy bitboards after a move."""
-        self.update_occupancies()
         
     def copy(self):
         """Return a deep copy of the game state."""
@@ -219,4 +269,36 @@ class BitboardGameState:
         new_state.fullmove_number = self.fullmove_number
         return new_state
     
-    
+    def print_board(self):
+        """Print the current board with pieces."""
+        # Create a list of piece symbols
+        piece_symbols = {
+            "white_pawns": "P", "black_pawns": "p",
+            "white_knights": "N", "black_knights": "n",
+            "white_bishops": "B", "black_bishops": "b",
+            "white_rooks": "R", "black_rooks": "r",
+            "white_queens": "Q", "black_queens": "q",
+            "white_king": "K", "black_king": "k"
+        }
+
+        # Iterate over the board squares (0 to 63)
+        for rank in range(7, -1, -1):
+            row = ""
+            for file in range(8):
+                square_index = (rank * 8) + file
+                piece_found = False
+
+                # Check if the piece is on this square
+                for piece_type in piece_symbols:
+                    bb = getattr(self, piece_type)
+                    # Ensure that square_index is cast to np.uint64
+                    if bb & (np.uint64(1) << np.uint64(square_index)):
+                        row += piece_symbols[piece_type] + " "
+                        piece_found = True
+                        break
+
+                # If no piece found, print a dot for an empty square
+                if not piece_found:
+                    row += "* "
+
+            print(row)

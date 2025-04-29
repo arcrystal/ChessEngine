@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from game import GameState, EMPTY, ROOK, KING
+from game import GameState, EMPTY, ROOK
 from engine_utils import generate_legal_moves, apply_move
 
 @pytest.fixture

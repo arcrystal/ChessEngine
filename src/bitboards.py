@@ -1,5 +1,5 @@
 import numpy as np
-from numba import njit, uint64
+from numba import njit
 
 # === CONSTANTS ===
 
@@ -86,50 +86,6 @@ def precompute_lookup_tables(n_attacks, k_attacks, white_p_attacks, black_p_atta
 
         white_p_attacks[sq] = white_pawn_attacks
         black_p_attacks[sq] = black_pawn_attacks
-
-        # DEBUG: Print the knight, king, and pawn attacks using bitwise manipulation
-        # knight_bin = 0
-        # for i in range(64):
-        #     knight_bin |= ((knight_attacks >> i) & 1) << (63 - i)
-
-        # king_bin = 0
-        # for i in range(64):
-        #     king_bin |= ((king_attacks >> i) & 1) << (63 - i)
-
-        # white_pawn_bin = 0
-        # for i in range(64):
-        #     white_pawn_bin |= ((white_pawn_attacks >> i) & 1) << (63 - i)
-
-        # black_pawn_bin = 0
-        # for i in range(64):
-        #     black_pawn_bin |= ((black_pawn_attacks >> i) & 1) << (63 - i)
-
-        # # Store the result for printing (avoiding 'end' argument)
-        # knight_str = f"Square {sq}: Knight Attacks = "
-        # for i in range(63, -1, -1):
-        #     knight_str += '1' if (knight_bin >> i) & 1 else '0'
-        # knight_str += "\n"
-
-        # king_str = f"Square {sq}: King Attacks = "
-        # for i in range(63, -1, -1):
-        #     king_str += '1' if (king_bin >> i) & 1 else '0'
-        # king_str += "\n"
-
-        # white_pawn_str = f"Square {sq}: White Pawn Attacks = "
-        # for i in range(63, -1, -1):
-        #     white_pawn_str += '1' if (white_pawn_bin >> i) & 1 else '0'
-        # white_pawn_str += "\n"
-
-        # black_pawn_str = f"Square {sq}: Black Pawn Attacks = "
-        # for i in range(63, -1, -1):
-        #     black_pawn_str += '1' if (black_pawn_bin >> i) & 1 else '0'
-        # black_pawn_str += "\n"
-
-        # # Print all the results together
-        # print(knight_str)
-        # print(king_str)
-        # print(white_pawn_str)
-        # print(black_pawn_str)
         
 @njit
 def generate_mask_rook(square):
@@ -198,16 +154,16 @@ def compute_bishop_attacks(square, occupancy):
                 break  # Stop if there's a piece (blocking the bishop)
     
     # Debug collision detection
-    if square % 9 == 0:
-        bishops_bin = 0
-        for i in range(64):
-            bishops_bin |= ((attacks >> i) & 1) << (63 - i)
+    # if square % 9 == 0:
+    #     bishops_bin = 0
+    #     for i in range(64):
+    #         bishops_bin |= ((attacks >> i) & 1) << (63 - i)
         
-        bishops_str = f"Square {square}: Bishop Attacks = "
-        for i in range(63, -1, -1):
-            bishops_str += '1' if (bishops_bin >> i) & 1 else '0'
+    #     bishops_str = f"Square {square}: Bishop Attacks = "
+    #     for i in range(63, -1, -1):
+    #         bishops_str += '1' if (bishops_bin >> i) & 1 else '0'
         
-        print(bishops_str)
+    #     print(bishops_str)
     
     return attacks
 

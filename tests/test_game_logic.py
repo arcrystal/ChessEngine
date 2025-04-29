@@ -1,7 +1,6 @@
-import pytest
-import numpy as np
-from engine_utils import *
+from engine_utils import generate_legal_moves, apply_move# noqa: F403
 from game import GameState
+from constants import EMPTY, KING, ROOK, BISHOP, PAWN
 
 def new_game():
     return GameState()
