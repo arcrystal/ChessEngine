@@ -26,10 +26,6 @@ def bitwise_not_64(x):
 def file_mask(file_idx):
     return 0x0101010101010101 << file_idx
 
-# pawns = int(pawns)
-# empty = int(~gs.occupied & 0xFFFFFFFFFFFFFFFF)
-# enemy = int(gs.black_occupancy if is_white else gs.white_occupancy)
-
 # =========== Move Generators ==============
 def generate_pawn_moves(gs, pawns, is_white, verbose=False):
     moves = []
