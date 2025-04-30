@@ -41,7 +41,7 @@ def precompute_lookup_tables(n_attacks, k_attacks, white_p_attacks, black_p_atta
             nr, nc = r + dr, f + df
             if 0 <= nr < 8 and 0 <= nc < 8:
                 knight_attacks |= square_mask(nr * 8 + nc)
-        n_attacks[sq] = knight_attacks
+        KNIGHT_ATTACKS[sq] = knight_attacks
 
         # King attacks
         king_attacks = 0
@@ -49,7 +49,7 @@ def precompute_lookup_tables(n_attacks, k_attacks, white_p_attacks, black_p_atta
             nr, nc = r + dr, f + df
             if 0 <= nr < 8 and 0 <= nc < 8:
                 king_attacks |= square_mask(nr * 8 + nc)
-        k_attacks[sq] = king_attacks
+        KING_ATTACKS[sq] = king_attacks
 
         # Pawn attacks
         # Pawn attacks

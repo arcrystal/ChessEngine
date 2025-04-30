@@ -98,19 +98,34 @@ def generate_pawn_moves(gs, pawns, is_white, verbose=False):
             moves.append((np.int8(from_sq), np.int8(to_sq), np.int8(0)))
         temp &= temp - 1
 
-    # En passant
+    # --- En Passant ---
     if gs.en_passant_target != -1:
         ep_sq = gs.en_passant_target
-        ep_file = ep_sq % 8
         ep_rank_bb = rank_mask(ep_rank)
         pawns_on_ep_rank = pawns & ep_rank_bb
 
-        # Check if any pawn is in position to capture en passant
-        for shift, file_diff in ((7, 1), (9, -1)) if is_white else ((-9, 1), (-7, -1)):
-            from_sq = ep_sq - shift
-            if 0 <= from_sq < 64 and abs((from_sq % 8) - ep_file) == 1:
-                if (pawns_on_ep_rank >> from_sq) & 1:
-                    moves.append((np.int8(from_sq), np.int8(ep_sq), np.int8(0)))
+        for from_sq in range(64):
+            if not (pawns_on_ep_rank >> from_sq) & 1:
+                continue
+
+            from_file = from_sq % 8
+            ep_file = ep_sq % 8
+
+            # Must be diagonally adjacent
+            if abs(from_file - ep_file) != 1:
+                continue
+
+            # White captures up-left or up-right
+            if is_white and from_sq + 7 == ep_sq and from_file > 0:
+                moves.append((np.int8(from_sq), np.int8(ep_sq), np.int8(0)))
+            elif is_white and from_sq + 9 == ep_sq and from_file < 7:
+                moves.append((np.int8(from_sq), np.int8(ep_sq), np.int8(0)))
+
+            # Black captures down-left or down-right
+            elif not is_white and from_sq - 9 == ep_sq and from_file > 0:
+                moves.append((np.int8(from_sq), np.int8(ep_sq), np.int8(0)))
+            elif not is_white and from_sq - 7 == ep_sq and from_file < 7:
+                moves.append((np.int8(from_sq), np.int8(ep_sq), np.int8(0)))
 
     return moves
 
@@ -264,7 +279,7 @@ def generate_castling_moves(gs, is_white, verbose=False):
 
 def generate_all_moves(gs, verbose=False):
     if gs.white_to_move:
-        return generate_pawn_moves(gs, int(gs.white_pawns), True, verbose=verbose) \
+        return generate_pawn_moves(gs, int(gs.white_pawns), True, verbose=True) \
         + generate_knight_moves(gs, int(gs.white_knights), True, verbose=verbose) \
         + generate_bishop_moves(gs, int(gs.white_bishops), True, verbose=verbose) \
         + generate_rook_moves(gs, int(gs.white_rooks), True, verbose=verbose) \

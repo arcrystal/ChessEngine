@@ -78,11 +78,16 @@ class BitboardGameState:
         enemy_king = self.black_king if white else self.white_king
         occupancy = self.white_occupancy | self.black_occupancy
 
-        if np.uint64(pawn_attacks(king_sq, not white)) & np.uint64(enemy_pawns): return True
-        if np.uint64(knight_attacks(king_sq)) & np.uint64(enemy_knights): return True
-        if np.uint64(bishop_attacks(king_sq, occupancy)) & np.uint64(enemy_bishops | enemy_queens): return True
-        if np.uint64(rook_attacks(king_sq, occupancy)) & np.uint64(enemy_rooks | enemy_queens): return True
-        if np.uint64(king_attacks(king_sq)) & np.uint64(enemy_king): return True
+        if np.uint64(pawn_attacks(king_sq, not white)) & np.uint64(enemy_pawns):
+            return True
+        if np.uint64(knight_attacks(king_sq)) & np.uint64(enemy_knights):
+            return True
+        if np.uint64(bishop_attacks(king_sq, occupancy)) & np.uint64(enemy_bishops | enemy_queens):
+            return True
+        if np.uint64(rook_attacks(king_sq, occupancy)) & np.uint64(enemy_rooks | enemy_queens):
+            return True
+        if np.uint64(king_attacks(king_sq)) & np.uint64(enemy_king):
+            return True
         return False
     
     def attack_map(self, is_white):
@@ -165,6 +170,7 @@ class BitboardGameState:
             self.halfmove_clock,
             self.fullmove_number,
         ))
+
         from_sq, to_sq, promo = move
 
         mover_bb = np.uint64(1) << np.uint64(from_sq)
@@ -173,39 +179,45 @@ class BitboardGameState:
         moving_side = 'white' if self.white_to_move else 'black'
         opponent_side = 'black' if self.white_to_move else 'white'
 
-        # --- Find and move the piece
+        # --- Detect piece type being moved
         for piece_type in ['pawns', 'knights', 'bishops', 'rooks', 'queens', 'king']:
             bb = getattr(self, f"{moving_side}_{piece_type}")
             if bb & mover_bb:
-                new_bb = (bb & ~mover_bb) | to_bb
-                setattr(self, f"{moving_side}_{piece_type}", new_bb)
+                # Remove from source, add to destination
+                setattr(self, f"{moving_side}_{piece_type}", (bb & ~mover_bb) | to_bb)
+
+                # --- En passant capture
+                if piece_type == 'pawns' and to_sq == self.en_passant_target:
+                    ep_capture_sq = to_sq + (-8 if self.white_to_move else 8)
+                    ep_capture_bb = np.uint64(1) << np.uint64(ep_capture_sq)
+                    opp_pawns_attr = f"{opponent_side}_pawns"
+                    setattr(self, opp_pawns_attr, getattr(self, opp_pawns_attr) & ~ep_capture_bb)
+
+                # --- Promotion
+                if promo:
+                    pawn_attr = f"{moving_side}_pawns"
+                    setattr(self, pawn_attr, getattr(self, pawn_attr) & ~to_bb)
+                    promo_attr = f"{moving_side}_{['', '', '', '', 'knights', 'bishops', 'rooks', 'queens'][promo]}"
+                    setattr(self, promo_attr, getattr(self, promo_attr) | to_bb)
+
+                # --- Set en passant square
+                if piece_type == 'pawns' and abs(to_sq - from_sq) == 16:
+                    self.en_passant_target = (from_sq + to_sq) // 2
+                else:
+                    self.en_passant_target = -1
+
                 break
         else:
             raise ValueError(f"No moving piece found at {from_sq}")
 
-        # --- Handle captures
+        # --- Normal capture (skips if en passant already captured)
         for piece_type in ['pawns', 'knights', 'bishops', 'rooks', 'queens', 'king']:
             opp_bb = getattr(self, f"{opponent_side}_{piece_type}")
             if opp_bb & to_bb:
-                new_opp_bb = opp_bb & ~to_bb
-                setattr(self, f"{opponent_side}_{piece_type}", new_opp_bb)
+                setattr(self, f"{opponent_side}_{piece_type}", opp_bb & ~to_bb)
                 break
 
-        # --- Handle promotions
-        if promo:
-            pawn_attr = f"{moving_side}_pawns"
-            promote_to = {KNIGHT: "knights", BISHOP: "bishops", ROOK: "rooks", QUEEN: "queens"}[promo]
-
-            # Remove pawn
-            pawn_bb = getattr(self, pawn_attr)
-            setattr(self, pawn_attr, pawn_bb & ~to_bb)
-
-            # Add promoted piece
-            promote_attr = f"{moving_side}_{promote_to}"
-            promote_bb = getattr(self, promote_attr)
-            setattr(self, promote_attr, promote_bb | to_bb)
-
-        # --- Update occupancies and side
+        # --- Update occupancies and switch sides
         self.update_occupancies()
         self.white_to_move = not self.white_to_move
     

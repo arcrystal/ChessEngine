@@ -47,27 +47,19 @@ def bitboard_perft_sequences(gs, depth, outfile):
 
 def _bitboard_perft_sequences(gs, depth, sequence, outfile):
     if depth == 0:
-        # for i in range(0, len(sequence), 2):
-        #     move_num = i // 2 + 1
-        #     if i + 1 < len(sequence):
-        #         outfile.write(f"{move_num}. {sequence[i]}, {sequence[i+1]} ")
-        #     else:
-        #         outfile.write(f"{move_num}. {sequence[i]}\n")
         outfile.write(str(sequence)+"\n")
-        return 1
+        return
 
-    nodes = 0
     moves = generate_all_moves(gs, verbose=False)
     for move in moves:
-        # move_str = str(move)
         gs.make_move(move)
         if not gs.is_check(not gs.white_to_move):
             sequence.append(move)
-            nodes += _bitboard_perft_sequences(gs, depth - 1, sequence, outfile)
+            _bitboard_perft_sequences(gs, depth - 1, sequence, outfile)
             sequence.pop()
         gs.undo_move()
 
-    return nodes
+    return
 
 # VALIDATION
 
@@ -105,4 +97,4 @@ if __name__ == "__main__":
         # with open(f"logs/moves_depth{depth+1}.txt", "w") as f:
         #     bitboard_perft_sequences(gs, depth, f)
         
-        validate(depth+1)
+        # validate(depth+1)
