@@ -1,8 +1,8 @@
 import numpy as np
-from bitboards import (
+from bitboards_nomagic import (
     pawn_attacks, knight_attacks, king_attacks,
-    bishop_attacks, rook_attacks, queen_attacks
 )
+from bitboards_magic import bishop_attacks, rook_attacks, queen_attacks, bishop_attacks_on_the_fly, rook_attacks_on_the_fly, print_bitboard
 from constants import KNIGHT, BISHOP, ROOK, QUEEN
 
 
@@ -269,7 +269,7 @@ class BitboardGameState:
         new_state.fullmove_number = self.fullmove_number
         return new_state
     
-    def print_board(self):
+    def print_board(self, return_str=False):
         """Print the current board with pieces."""
         # Create a list of piece symbols
         piece_symbols = {
@@ -282,6 +282,7 @@ class BitboardGameState:
         }
 
         # Iterate over the board squares (0 to 63)
+        board_str = ""
         for rank in range(7, -1, -1):
             row = ""
             for file in range(8):
@@ -300,5 +301,13 @@ class BitboardGameState:
                 # If no piece found, print a dot for an empty square
                 if not piece_found:
                     row += "* "
+                    
+            if return_str:
+                
+                board_str += row + "\n"
+            else:
+                print(row)
+        
+        if return_str:
+            return board_str
 
-            print(row)

@@ -1,11 +1,17 @@
 import numpy as np
-from bitboards import (
-    WHITE_PAWN_ATTACKS, BLACK_PAWN_ATTACKS, 
-    rank_mask, square_mask,
+from numba import njit
+
+from bitboards_nomagic import (
+    WHITE_PAWN_ATTACKS, BLACK_PAWN_ATTACKS, square_mask,
     knight_attacks, king_attacks,
-    bishop_attacks, rook_attacks, queen_attacks
 )
+from bitboards_magic import bishop_attacks, rook_attacks, queen_attacks
 from constants import KNIGHT, BISHOP, ROOK, QUEEN
+
+
+@njit
+def rank_mask(rank):
+    return np.uint64(0xFF) << np.uint64(rank * 8)
 
 def pop_lsb(bb):
     """Pop least significant bit and return (index, new_bb)."""
@@ -204,6 +210,44 @@ def generate_all_moves(gs):
     + generate_queen_moves(gs, int(gs.black_queens), False) \
     + generate_king_moves(gs, int(gs.black_king), False) \
     + generate_castling_moves(gs, False)
+    
+def generate_all_moves_debug(gs, depth=-1):
+    moves_str = gs.print_board(return_str=True)
+    if gs.white_to_move:
+        pawn_moves = generate_pawn_moves(gs, int(gs.white_pawns), True)
+        knight_moves = generate_knight_moves(gs, int(gs.white_knights), True)
+        bishop_moves = generate_bishop_moves(gs, int(gs.white_bishops), True)
+        rook_moves = generate_rook_moves(gs, int(gs.white_rooks), True)
+        queen_moves = generate_queen_moves(gs, int(gs.white_queens), True)
+        king_moves = generate_king_moves(gs, int(gs.white_king), True)
+        castling_moves = generate_castling_moves(gs, True)
+        if depth==1:
+            moves_str += "Pawn moves:" + str(len(pawn_moves))
+            moves_str += " Knight moves:" + str(len(knight_moves))
+            moves_str += " Bishop moves:" + str(len(bishop_moves))
+            moves_str += " Rook moves:" + str(len(rook_moves))
+            moves_str += " Queen moves:" + str(len(queen_moves))
+            moves_str += " King moves:" + str(len(king_moves))
+            moves_str += " Castling moves:" + str(len(castling_moves))
+        return pawn_moves + knight_moves + bishop_moves + rook_moves + queen_moves + king_moves + castling_moves, moves_str
+
+    pawn_moves = generate_pawn_moves(gs, int(gs.black_pawns), False)
+    knight_moves = generate_knight_moves(gs, int(gs.black_knights), False)
+    bishop_moves = generate_bishop_moves(gs, int(gs.black_bishops), False)
+    rook_moves = generate_rook_moves(gs, int(gs.black_rooks), False)
+    queen_moves = generate_queen_moves(gs, int(gs.black_queens), False)
+    king_moves = generate_king_moves(gs, int(gs.black_king), False)
+    castling_moves = generate_castling_moves(gs, False)
+    if depth == 1:
+        moves_str += "Pawn moves:" + str(len(pawn_moves))
+        moves_str += " Knight moves:" + str(len(knight_moves))
+        moves_str += " Bishop moves:" + str(len(bishop_moves))
+        moves_str += " Rook moves:" + str(len(rook_moves))
+        moves_str += " Queen moves:" + str(len(queen_moves))
+        moves_str += " King moves:" + str(len(king_moves))
+        moves_str += " Castling moves:" + str(len(castling_moves))
+        
+    return pawn_moves + knight_moves + bishop_moves + rook_moves + queen_moves + king_moves + castling_moves, moves_str
         
 def generate_all_legal_moves(gs):
     """Generate only *legal* moves (no king left in check)."""
@@ -211,7 +255,7 @@ def generate_all_legal_moves(gs):
     side_to_move = gs.white_to_move
 
     for move in generate_all_moves(gs):
-        print(move)
+        #print(get_standard_algebraic(move))
         gs.make_move(move)
         if not gs.is_in_check(side_to_move):
             legal_moves.append(move)
