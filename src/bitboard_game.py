@@ -66,7 +66,7 @@ class BitboardGameState:
 
         self.update_occupancies()
         
-    def is_in_check(self, white: bool) -> bool:
+    def is_check(self, white: bool) -> bool:
         """Check if side `white` is in check."""
         king_bb = self.white_king if white else self.black_king
         king_sq = int(king_bb).bit_length() - 1
@@ -324,3 +324,26 @@ class BitboardGameState:
             print(row)
         print("  +-----------------+")
         print("    a b c d e f g h\n")
+        
+    def index_to_square(self, index):
+        """Convert a 0-63 index to a chessboard square in algebraic notation."""
+        rank = (index // 8) + 1
+        file = chr(index % 8 + ord('a'))
+        return f"{file}{rank}"
+        
+    def get_standard_algebraic(self, move_or_loc):
+        """Convert a list of moves from index notation to algebraic notation."""
+        if isinstance(move_or_loc, tuple):
+            from_sq, to_sq, promo = move_or_loc
+            from_square_algebraic = self.index_to_square(from_sq)
+            to_square_algebraic = self.index_to_square(to_sq)
+            # Adding promotion notation if needed
+            if promo != 0:
+                promo_piece = {KNIGHT: 'N', BISHOP: 'B', ROOK: 'R', QUEEN: 'Q'}
+                move_notation = f"{from_square_algebraic}{to_square_algebraic}{promo_piece}"
+            else:
+                move_notation = f"{from_square_algebraic}{to_square_algebraic}"
+                
+            return move_notation
+        else:
+            return self.index_to_square(move_or_loc)

@@ -1,5 +1,5 @@
 from bitboard_game import BitboardGameState
-from generate_moves import generate_bishop_moves
+from generate_moves import generate_pawn_moves
 
 """
 8 56 57 58 59 60 61 62 63
@@ -15,7 +15,7 @@ from generate_moves import generate_bishop_moves
 
 gs = BitboardGameState()
 from_sq = 2
-gs.make_move((11, 27, 0))
-gs.make_move((54, 38, 0))
-generate_bishop_moves(gs, gs.white_bishops, gs.white_to_move, debug=True)
+gs.make_move((1, 16, 0)) #b1a3
+gs.make_move((52, 36, 0)) #e7e5
+generate_pawn_moves(gs, gs.white_bishops, gs.white_to_move, verbose=True)
 exit()
