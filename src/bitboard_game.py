@@ -86,7 +86,7 @@ class BitboardGameState:
         return False
     
     def attack_map(self, is_white):
-        attacks = np.uint64(0)
+        attacks = 0
 
         if is_white:
             pawns = self.white_pawns
@@ -103,6 +103,13 @@ class BitboardGameState:
             queens = self.black_queens
             king = self.black_king
 
+        pawns = int(pawns)
+        knights = int(knights)
+        bishops = int(bishops)
+        rooks = int(rooks)
+        queens = int(queens)
+        king = int(king)
+        
         while pawns:
             sq = (pawns & -pawns).bit_length() - 1
             attacks |= pawn_attacks(sq, is_white)

@@ -2,8 +2,7 @@ import numpy as np
 from numba import njit
 
 from bitboard_nomagic import (
-    WHITE_PAWN_ATTACKS, BLACK_PAWN_ATTACKS, square_mask,
-    knight_attacks, king_attacks,
+    square_mask, knight_attacks, king_attacks, pawn_attacks
 )
 from bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
 from constants import KNIGHT, BISHOP, ROOK, QUEEN
@@ -187,25 +186,40 @@ def generate_queen_moves(gs, queens, is_white, verbose=False):
 
 def generate_king_moves(gs, king, is_white, verbose=False):
     moves = []
-    own_pieces = np.uint64(gs.white_occupancy if is_white else gs.black_occupancy)
+    from_sq = int(np.log2(int(king)))  # Find king square
 
-    if king == np.uint64(0):
-        return moves  # No king found (should not happen, but safe)
+    own_pieces = gs.white_occupancy if is_white else gs.black_occupancy
+    enemy_attacks = gs.attack_map(not is_white)
+    legal_targets = king_attacks(from_sq) & int(~own_pieces) & int(~enemy_attacks)
 
-    from_sq = int(np.log2(int(king)))  # Find king square quickly
-
-    attacks = np.uint64(king_attacks(from_sq)) & ~own_pieces
     if verbose:
-        print(f"King moves from square {gs.get_standard_algebraic(from_sq)}")
+        print(f"King moves from {gs.get_standard_algebraic(from_sq)}")
         gs.print_board()
-        gs.print_bitboard(attacks)
+        gs.print_bitboard(legal_targets)
         print("--------\n")
 
-    while attacks:
-        to_sq, attacks = pop_lsb(attacks)
+    while legal_targets:
+        to_sq, legal_targets = pop_lsb(legal_targets)
         moves.append((np.int8(from_sq), np.int8(to_sq), np.int8(0)))
 
     return moves
+
+# def generate_king_moves(gs, king, is_white, verbose=False):
+#     moves = []
+#     own_pieces = np.uint64(gs.white_occupancy if is_white else gs.black_occupancy)
+#     from_sq = int(np.log2(int(king)))  # Find king square quickly
+#     attacks = np.uint64(king_attacks(from_sq)) & ~own_pieces
+#     if verbose:
+#         print(f"King moves from square {gs.get_standard_algebraic(from_sq)}")
+#         gs.print_board()
+#         gs.print_bitboard(attacks)
+#         print("--------\n")
+
+#     while attacks:
+#         to_sq, attacks = pop_lsb(attacks)
+#         moves.append((np.int8(from_sq), np.int8(to_sq), np.int8(0)))
+
+#     return moves
 
 def generate_castling_moves(gs, is_white, verbose=False):
     moves = []

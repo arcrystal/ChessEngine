@@ -98,15 +98,11 @@ def validate(depth: int):
 
     
 if __name__ == "__main__":
+    correct_nodes = [20, 400, 8902, 197281, 4865609]
     gs = BitboardGameState()
-    print("Depth 1:", bitboard_perft(gs, 1), "==20 nodes")
-    print("Depth 2:", bitboard_perft(gs, 2), "==400 nodes") 
-    print("Depth 3:", bitboard_perft(gs, 3), "==8902 nodes")
-    print("Depth 4:", bitboard_perft(gs, 4), "==197281 nodes")
-    print("Depth 5:", bitboard_perft(gs, 5), "==4865609 nodes")
-    
-    depth = 5
-    with open(f"logs/moves_depth{depth}.txt", "w") as f:
-        bitboard_perft_sequences(gs, depth, f)
+    for depth in range(5):
+        print(f"Depth {depth+1}: {bitboard_perft(gs, depth+1)}=={correct_nodes[depth]} nodes")
+        # with open(f"logs/moves_depth{depth+1}.txt", "w") as f:
+        #     bitboard_perft_sequences(gs, depth, f)
         
-    validate(depth)
+        validate(depth+1)
