@@ -1,15 +1,15 @@
 import numpy as np
-from bitboards_nomagic import (
+from bitboard_nomagic import (
     pawn_attacks, knight_attacks, king_attacks,
 )
-from bitboards_magic import bishop_attacks, rook_attacks, queen_attacks, bishop_attacks_on_the_fly, rook_attacks_on_the_fly, print_bitboard
+from bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
 from constants import KNIGHT, BISHOP, ROOK, QUEEN
 
 
 class BitboardGameState:
     def __init__(self):
         self.move_info = []
-        # Piece bitboards
+        # Piece bitboard
         self.white_pawns = np.uint64(0)
         self.white_knights = np.uint64(0)
         self.white_bishops = np.uint64(0)
@@ -310,4 +310,17 @@ class BitboardGameState:
         
         if return_str:
             return board_str
-
+        
+    def print_bitboard(self, bitboard: int, label: str = ""):
+        if label:
+            print(f"{label}")
+        print("  +-----------------+")
+        for rank in range(7, -1, -1):
+            row = f"{rank + 1} |"
+            for file in range(8):
+                square = rank * 8 + file
+                row += " X" if (int(bitboard) >> square) & 1 else " ."
+            row += " |"
+            print(row)
+        print("  +-----------------+")
+        print("    a b c d e f g h\n")
