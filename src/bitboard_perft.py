@@ -1,5 +1,5 @@
 from bitboard_game import BitboardGameState
-from bitboard_gamestate_utils import is_check_numba, apply_move_numba, undo_move_numba
+from bitboard_gamestate_utils import is_check_numba, apply_move_numba, undo_move_numba, update_occupancies_numba
 from generate_moves import generate_all_moves
 
 from numba import uint64, boolean
@@ -35,38 +35,22 @@ def timeit(func):
         return res
     return wrapper
 
-def _bitboard_perft(gs, depth, verbose, move_info):
+def _bitboard_perft(gs, depth, move_info):
     if depth == 0:
         return 1
     
     nodes = 0
-    for move in generate_all_moves(gs):
-        if verbose:
-            print(move)
-
+    moves = generate_all_moves(gs)
+    for move in moves:
         state = apply_move_numba(gs, move)
         move_info.append(state)
         if not is_check_numba(gs, not gs.white_to_move):
-            nodes += _bitboard_perft(gs, depth - 1, verbose, move_info)
-
+            update_occupancies_numba(gs)
+            gs.white_to_move = not gs.white_to_move
+            nodes += _bitboard_perft(gs, depth - 1, move_info)
         undo_move_numba(gs, move_info)
-        
+
     return nodes
-
-@timeit
-def bitboard_perft(gs, depth, verbose=False):
-    move_info = List.empty_list(move_state_type)
-    return _bitboard_perft(gs, depth, verbose, move_info)
-
-
-
-# ===================================
-# ========== FOR DEBUGGING ==========
-def bitboard_perft_sequences(gs, depth, outfile):
-    move_info = List.empty_list(move_state_type)
-    sequence = []
-    _bitboard_perft_sequences(gs, depth, sequence, outfile, move_info)
-
 
 def _bitboard_perft_sequences(gs, depth, sequence, outfile, move_info):
     if depth == 0:
@@ -76,14 +60,22 @@ def _bitboard_perft_sequences(gs, depth, sequence, outfile, move_info):
     for move in generate_all_moves(gs):
         state = apply_move_numba(gs, move)
         if not is_check_numba(gs, not gs.white_to_move):
+            update_occupancies_numba(gs)
+            gs.white_to_move = not gs.white_to_move
             move_info.append(state)
             sequence.append(move)
             _bitboard_perft_sequences(gs, depth-1, sequence, outfile, move_info)
             sequence.pop()
-
         undo_move_numba(gs, move_info)
 
     return
+
+@timeit
+def bitboard_perft(gs, depth):
+    return _bitboard_perft(gs, depth, List.empty_list(move_state_type))
+
+def bitboard_perft_sequences(gs, depth, outfile):
+    _bitboard_perft_sequences(gs, depth, [], outfile, List.empty_list(move_state_type))
 
 def parse_tuple_list(s: str):
     return ast.literal_eval(s)
@@ -98,7 +90,7 @@ def validate(depth: int):
         moves = [chess.Move(move[0], move[1]) for move in seq]
         for move in moves:
             if move not in board.legal_moves:
-                msg = str(move) + "invalid from "
+                msg = str(move) + " invalid from "
                 for m in moves:
                     msg += str(m) + ", "
                 print(msg[:-2])
@@ -122,11 +114,11 @@ if __name__ == "__main__":
         with open(f"logs/moves_depth{depth}.txt", "w") as f:
             bitboard_perft_sequences(gs, depth, f)
             validate(depth)
-            print(f"Depth {depth} perft\n{bitboard_perft(gs, depth, verbose=False)}\nAnticipated: {correct_nodes[depth]}")
+            print(f"Depth {depth} perft\n{bitboard_perft(gs, depth)}\nAnticipated: {correct_nodes[depth]}")
     else:
         for depth in range(5):
             print()
-            print(f"Depth {depth}: {bitboard_perft(gs, depth, verbose=False)}\nAnticipated: {correct_nodes[depth]}")
+            print(f"Depth {depth}: {bitboard_perft(gs, depth)}\nAnticipated: {correct_nodes[depth]}")
 
     print()
             

@@ -18,7 +18,7 @@ def update_occupancies_numba(gs):
     gs.occupied = gs.white_occupancy | gs.black_occupancy
 
 @njit
-def make_move_state(gs):
+def get_move_info(gs):
     return (
         uint64(gs.white_pawns),
         uint64(gs.white_knights),
@@ -94,10 +94,7 @@ def apply_move_numba(gs, move):
         gs.white_pawns, gs.white_knights, gs.white_bishops, \
         gs.white_rooks, gs.white_queens, gs.white_king = opp
 
-    update_occupancies_numba(gs)
-    gs.white_to_move = not gs.white_to_move
-    # === Append current state ===
-    return make_move_state(gs)
+    return get_move_info(gs)
 
 @njit
 def undo_move_numba(gs, move_info):
@@ -109,8 +106,6 @@ def undo_move_numba(gs, move_info):
     for i in range(4):
         gs.castling_rights[i] = prev_castling_rights[i]
     
-    update_occupancies_numba(gs)
-
 @njit
 def is_check_numba(gs, white_to_move: bool) -> bool:
     king_bb = gs.white_king if white_to_move else gs.black_king

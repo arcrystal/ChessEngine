@@ -40,7 +40,7 @@ def print_board(gs, return_str=False):
     if return_str:
         return board_str
     
-def print_bitboard(bitboard: int, label: str = ""):
+def print_bitboard(squares: int, bitboard: int, label: str = ""):
     if label:
         print(f"{label}")
     print("  +-----------------+")
@@ -48,7 +48,7 @@ def print_bitboard(bitboard: int, label: str = ""):
         row = f"{rank + 1} |"
         for file in range(8):
             square = rank * 8 + file
-            row += " X" if (int(bitboard) >> square) & 1 else " ."
+            row += " X" if (int(bitboard) >> square) & 1 else " O" if square in squares else " ."
         row += " |"
         print(row)
     print("  +-----------------+")

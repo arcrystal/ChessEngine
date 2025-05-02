@@ -1,4 +1,4 @@
-from numba import njit
+from numba import njit, uint64
 
 from bitboard_nomagic import knight_attacks, king_attacks
 from bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
@@ -31,7 +31,7 @@ def generate_pawn_moves(gs, pawns, white_to_move):
         direction = -8
 
     # --- Single pushes ---
-    temp = single_push
+    temp = uint64(single_push)
     while temp:
         to_sq, temp = pop_lsb(temp)
         from_sq = to_sq - direction
@@ -42,14 +42,14 @@ def generate_pawn_moves(gs, pawns, white_to_move):
             moves.append((from_sq, to_sq, 0))
 
     # --- Double pushes ---
-    temp = double_push
+    temp = uint64(double_push)
     while temp:
         to_sq, temp = pop_lsb(temp)
         from_sq = to_sq - 2 * direction
         moves.append((from_sq, to_sq, 0))
 
     # --- Left captures ---
-    temp = left_attacks
+    temp = uint64(left_attacks)
     while temp:
         to_sq, temp = pop_lsb(temp)
         from_sq = to_sq - (7 if white_to_move else -9)
@@ -60,7 +60,7 @@ def generate_pawn_moves(gs, pawns, white_to_move):
             moves.append((from_sq, to_sq, 0))
 
     # --- Right captures ---
-    temp = right_attacks
+    temp = uint64(right_attacks)
     while temp:
         to_sq, temp = pop_lsb(temp)
         from_sq = to_sq - (9 if white_to_move else -7)
@@ -77,7 +77,7 @@ def generate_pawn_moves(gs, pawns, white_to_move):
         ep_rank_bb = rank_mask(ep_rank)
         pawns_on_rank = pawns & ep_rank_bb
 
-        temp = pawns_on_rank
+        temp = uint64(pawns_on_rank)
         while temp:
             from_sq, temp = pop_lsb(temp)
             from_file = from_sq % 8
@@ -93,8 +93,9 @@ def generate_pawn_moves(gs, pawns, white_to_move):
 def generate_knight_moves(gs, knights, white_to_move):
     moves = []
     own_pieces = gs.white_occupancy if white_to_move else gs.black_occupancy
-    while knights:
-        from_sq, knights = pop_lsb(knights)
+    temp = uint64(knights)
+    while temp:
+        from_sq, temp = pop_lsb(temp)
         attacks = knight_attacks(from_sq) & ~own_pieces
         while attacks:
             to_sq, attacks = pop_lsb(attacks)
@@ -104,12 +105,13 @@ def generate_knight_moves(gs, knights, white_to_move):
 @njit
 def generate_king_moves(gs, king_bb, white_to_move):
     moves = []
-    from_sq = pop_lsb(king_bb)[0]
+    from_sq = pop_lsb(uint64(king_bb))[0]
     own_pieces = gs.white_occupancy if white_to_move else gs.black_occupancy
     enemy_attacks = attack_map_numba(gs, not white_to_move)
     legal = king_attacks(from_sq) & ~own_pieces & ~enemy_attacks
-    while legal:
-        to_sq, legal = pop_lsb(legal)
+    temp = uint64(legal)
+    while temp:
+        to_sq, temp = pop_lsb(temp)
         moves.append((from_sq, to_sq, 0))
     return moves
 
@@ -117,7 +119,7 @@ def generate_king_moves(gs, king_bb, white_to_move):
 def generate_bishop_moves(gs, bishops, white_to_move):
     moves = []
     own_pieces = gs.white_occupancy if white_to_move else gs.black_occupancy
-    temp = bishops
+    temp = uint64(bishops)
     while temp:
         from_sq, temp = pop_lsb(temp)
         attacks = bishop_attacks(from_sq, gs.occupied) & ~own_pieces
@@ -130,7 +132,7 @@ def generate_bishop_moves(gs, bishops, white_to_move):
 def generate_rook_moves(gs, rooks, white_to_move):
     moves = []
     own_pieces = gs.white_occupancy if white_to_move else gs.black_occupancy
-    temp = rooks
+    temp = uint64(rooks)
     while temp:
         from_sq, temp = pop_lsb(temp)
         attacks = rook_attacks(from_sq, gs.occupied) & ~own_pieces
@@ -143,7 +145,7 @@ def generate_rook_moves(gs, rooks, white_to_move):
 def generate_queen_moves(gs, queens, white_to_move):
     moves = []
     own_pieces = gs.white_occupancy if white_to_move else gs.black_occupancy
-    temp = queens
+    temp = uint64(queens)
     while temp:
         from_sq, temp = pop_lsb(temp)
         attacks = queen_attacks(from_sq, gs.occupied) & ~own_pieces
