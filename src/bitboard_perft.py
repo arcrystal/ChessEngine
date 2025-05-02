@@ -2,8 +2,7 @@ from bitboard_game import BitboardGameState
 from bitboard_gamestate_utils import is_check_numba, apply_move_numba, undo_move_numba, update_occupancies_numba
 from generate_moves import generate_all_moves
 
-from numba import uint64, boolean
-from numba import types
+from numba import uint64, boolean, types, njit
 from numba.typed import List
 
 import time
@@ -24,16 +23,7 @@ move_state_type = types.Tuple((
     types.int32                                       # fullmove_number
 ))
 
-def timeit(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        end = time.perf_counter()
-        res = f"Runtime: {end - start:.6f}s\nNodes found: {result}"
-        return res
-    return wrapper
-
+@njit
 def _bitboard_perft(gs, depth, move_info):
     if depth == 0:
         return 1
@@ -73,11 +63,10 @@ def _bitboard_perft_sequences(gs, depth, sequence, outfile, move_info):
 
     return
 
-@timeit
+@njit
 def bitboard_perft(gs, depth):
     move_info = List.empty_list(move_state_type)
     return _bitboard_perft(gs, depth, move_info)
-
 
 def bitboard_perft_sequences(gs, depth, outfile):
     move_info = List.empty_list(move_state_type)
@@ -106,7 +95,7 @@ def validate(depth: int):
             
             board.push(move)
             
-    print(f"---\n{n} invalid moves")
+    print(f"{n} invalid moves")
 
 # ========= ^ FOR DEBUGGING =========
 # ===================================
@@ -119,13 +108,19 @@ if __name__ == "__main__":
         print("Logging moves...")
         depth = int(sys.argv[1])
         with open(f"logs/moves_depth{depth}.txt", "w") as f:
-            bitboard_perft_sequences(gs, depth, f)
+            print()
+            start = time.perf_counter()
+            res = bitboard_perft_sequences(gs, depth, f)
+            end = time.perf_counter()
+            print(f"Depth {depth}\nExecuted in {(end-start):.6f}\nNodes count: {res}\nAnticipated: {correct_nodes[depth]}")
             validate(depth)
-            print(f"Depth {depth} perft\n{bitboard_perft(gs, depth)}\nAnticipated: {correct_nodes[depth]}")
     else:
         for depth in range(5):
             print()
-            print(f"Depth {depth}: {bitboard_perft(gs, depth)}\nAnticipated: {correct_nodes[depth]}")
+            start = time.perf_counter()
+            res = bitboard_perft(gs, depth)
+            end = time.perf_counter()
+            print(f"Depth {depth}\nExecuted in {(end-start):.6f}\nNodes count: {res}\nAnticipated: {correct_nodes[depth]}")
 
     print()
             

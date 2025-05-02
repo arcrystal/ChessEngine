@@ -2,7 +2,7 @@ from bitboard_game import BitboardGameState
 from bitboard_gamestate_utils import attack_map_numba, apply_move_numba, update_occupancies_numba, undo_move_numba
 from bitboard_nomagic import knight_attacks, king_attacks
 from bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
-from debugging import print_bitboard, print_board, get_standard_algebraic
+from debugging import print_bitboard, get_standard_algebraic
 from constants import board_str
 from bitboard_utils import rank_mask, file_mask
 from numba import uint64, boolean
@@ -12,14 +12,15 @@ from generate_moves import *
 import warnings
 warnings.simplefilter("ignore")
 
+print()
+
 gs = BitboardGameState()
 
 move_state_type = types.Tuple((
     uint64, uint64, uint64, uint64, uint64, uint64,   # white pieces
     uint64, uint64, uint64, uint64, uint64, uint64,   # black pieces
-    boolean,                                          # white_to_move
     types.UniTuple(types.int8, 4),                    # castling_rights
-    types.int64,                                      # en_passant_target
+    types.int32,                                      # en_passant_target
     types.int32,                                      # halfmove_clock
     types.int32                                       # fullmove_number
 ))
@@ -46,8 +47,7 @@ for mv1 in generate_all_moves(gs):
     gs.white_to_move = not gs.white_to_move
 
 print("Moves @ depth=2:", n)
-exit()
-
+print()
 empty = ~gs.occupied
 enemy = gs.black_occupancy if gs.white_to_move else gs.white_occupancy
 pawns = gs.white_pawns if gs.white_to_move else gs.black_pawns
