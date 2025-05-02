@@ -1,6 +1,6 @@
 from bitboard_game import BitboardGameState
-from generate_moves import generate_pawn_moves
-
+from generate_moves import generate_knight_moves
+from debugging import print_bitboard
 """
 8 56 57 58 59 60 61 62 63
 7 48 59 50 51 52 53 54 55
@@ -14,8 +14,5 @@ from generate_moves import generate_pawn_moves
 """
 
 gs = BitboardGameState()
-from_sq = 2
-gs.make_move((1, 16, 0)) #b1a3
-gs.make_move((52, 36, 0)) #e7e5
-generate_pawn_moves(gs, gs.white_bishops, gs.white_to_move, verbose=True)
+generate_knight_moves(gs, gs.white_knights, gs.white_to_move)
 exit()

@@ -1,14 +1,11 @@
 import numpy as np
 from numba import njit
+from bitboard_utils import square_mask
 
 KNIGHT_ATTACKS = np.zeros(64, dtype=np.uint64)
 KING_ATTACKS = np.zeros(64, dtype=np.uint64)
 WHITE_PAWN_ATTACKS = np.zeros(64, dtype=np.uint64)
 BLACK_PAWN_ATTACKS = np.zeros(64, dtype=np.uint64)
-
-@njit
-def square_mask(sq: int) -> np.uint64:
-    return np.uint64(1) << np.uint64(sq)
 
 @njit
 def knight_attacks(square: int) -> np.uint64:

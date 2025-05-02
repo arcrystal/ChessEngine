@@ -1,24 +1,16 @@
-import numpy as np
-from numba import njit, uint64
+from numba import njit
 
-from bitboard_nomagic import (
-    square_mask, knight_attacks, king_attacks, pawn_attacks
-)
+from bitboard_nomagic import knight_attacks, king_attacks
 from bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
 from constants import KNIGHT, BISHOP, ROOK, QUEEN
-from bitboard_utils import attack_map_numba, pop_lsb
+from bitboard_utils import pop_lsb, rank_mask, file_mask
+from bitboard_gamestate_utils import attack_map_numba
 
-@njit
-def rank_mask(rank):
-    return uint64(0xFF) << uint64(rank * 8)
-
-@njit
-def file_mask(file_idx):
-    return uint64(0x0101010101010101) << uint64(file_idx)
 
 @njit
 def generate_pawn_moves(gs, pawns, is_white):
     moves = []
+
     empty = ~gs.occupied
     enemy = gs.black_occupancy if is_white else gs.white_occupancy
 
@@ -39,25 +31,62 @@ def generate_pawn_moves(gs, pawns, is_white):
         ep_rank = 3
         direction = -8
 
-    for push in [single_push, double_push, left_attacks, right_attacks]:
-        temp = push
-        while temp:
-            sq, temp = pop_lsb(temp)
-            from_sq = sq - direction if push is not double_push else sq - 2 * direction
-            if from_sq // 8 == promo_rank:
-                for promo in (QUEEN, ROOK, BISHOP, KNIGHT):
-                    moves.append((from_sq, sq, promo))
-            else:
-                moves.append((from_sq, sq, 0))
+    # --- Single pushes ---
+    temp = single_push
+    while temp:
+        to_sq, temp = pop_lsb(temp)
+        from_sq = to_sq - direction
+        if from_sq // 8 == promo_rank:
+            for promo in (QUEEN, ROOK, BISHOP, KNIGHT):
+                moves.append((from_sq, to_sq, promo))
+        else:
+            moves.append((from_sq, to_sq, 0))
 
-    # En passant
+    # --- Double pushes ---
+    temp = double_push
+    while temp:
+        to_sq, temp = pop_lsb(temp)
+        from_sq = to_sq - 2 * direction
+        moves.append((from_sq, to_sq, 0))
+
+    # --- Left captures ---
+    temp = left_attacks
+    while temp:
+        to_sq, temp = pop_lsb(temp)
+        from_sq = to_sq - (7 if is_white else -9)
+        if from_sq // 8 == promo_rank:
+            for promo in (QUEEN, ROOK, BISHOP, KNIGHT):
+                moves.append((from_sq, to_sq, promo))
+        else:
+            moves.append((from_sq, to_sq, 0))
+
+    # --- Right captures ---
+    temp = right_attacks
+    while temp:
+        to_sq, temp = pop_lsb(temp)
+        from_sq = to_sq - (9 if is_white else -7)
+        if from_sq // 8 == promo_rank:
+            for promo in (QUEEN, ROOK, BISHOP, KNIGHT):
+                moves.append((from_sq, to_sq, promo))
+        else:
+            moves.append((from_sq, to_sq, 0))
+
+    # --- En Passant ---
     if gs.en_passant_target != -1:
         ep_sq = gs.en_passant_target
-        ep_bb = square_mask(ep_sq)
-        adj = ((pawns << 1) | (pawns >> 1)) & rank_mask(ep_rank)
-        if adj & ep_bb:
-            from_sq = ep_sq - direction + (1 if (pawns >> (ep_sq - 1)) & 1 else -1)
-            moves.append((from_sq, ep_sq, 0))
+        ep_file = ep_sq % 8
+        ep_rank_bb = rank_mask(ep_rank)
+        pawns_on_rank = pawns & ep_rank_bb
+
+        temp = pawns_on_rank
+        while temp:
+            from_sq, temp = pop_lsb(temp)
+            from_file = from_sq % 8
+            if abs(from_file - ep_file) == 1:
+                if is_white and (from_sq + 7 == ep_sq or from_sq + 9 == ep_sq):
+                    moves.append((from_sq, (ep_sq), 0))
+                elif not is_white and (from_sq - 9 == ep_sq or from_sq - 7 == ep_sq):
+                    moves.append((from_sq, (ep_sq), 0))
 
     return moves
 
