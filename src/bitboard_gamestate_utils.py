@@ -2,7 +2,7 @@ import numpy as np
 from numba import uint64, njit
 from bitboard_nomagic import pawn_attacks, king_attacks, knight_attacks
 from bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
-from numba import int8, int32, int64
+from numba import int8, int32
 from bitboard_utils import pop_lsb
 
 @njit
@@ -55,11 +55,11 @@ def apply_move_numba(gs, move):
         gs.black_rooks, gs.black_queens, gs.black_king
     ], dtype=uint64)
 
-    is_white = gs.white_to_move
+    white_to_move = gs.white_to_move
     ep_target = gs.en_passant_target
 
-    side = wp if is_white else bp
-    opp = bp if is_white else wp
+    side = wp if white_to_move else bp
+    opp = bp if white_to_move else wp
 
     for i in range(6):
         if side[i] & mover_bb:
@@ -68,7 +68,7 @@ def apply_move_numba(gs, move):
             # 0 == PAWN
             if i == 0:
                 if to_sq == ep_target:
-                    ep_sq = to_sq + (-8 if is_white else 8)
+                    ep_sq = to_sq + (-8 if white_to_move else 8)
                     opp[0] &= ~(uint64(1) << uint64(ep_sq))
                 if promo != 0:
                     side[0] &= ~to_bb
@@ -83,7 +83,7 @@ def apply_move_numba(gs, move):
             opp[i] &= ~to_bb
             break
 
-    if is_white:
+    if white_to_move:
         gs.white_pawns, gs.white_knights, gs.white_bishops, \
         gs.white_rooks, gs.white_queens, gs.white_king = side
         gs.black_pawns, gs.black_knights, gs.black_bishops, \
@@ -112,40 +112,40 @@ def undo_move_numba(gs, move_info):
     update_occupancies_numba(gs)
 
 @njit
-def is_check_numba(gs, is_white: bool) -> bool:
-    king_bb = gs.white_king if is_white else gs.black_king
+def is_check_numba(gs, white_to_move: bool) -> bool:
+    king_bb = gs.white_king if white_to_move else gs.black_king
     king_sq, _ = pop_lsb(king_bb)
     occ = gs.white_occupancy | gs.black_occupancy
 
-    ep = not is_white
-    if pawn_attacks(king_sq, ep) & (gs.black_pawns if is_white else gs.white_pawns):
+    ep = not white_to_move
+    if pawn_attacks(king_sq, ep) & (gs.black_pawns if white_to_move else gs.white_pawns):
         return True
-    if knight_attacks(king_sq) & (gs.black_knights if is_white else gs.white_knights):
+    if knight_attacks(king_sq) & (gs.black_knights if white_to_move else gs.white_knights):
         return True
-    if bishop_attacks(king_sq, occ) & ((gs.black_bishops | gs.black_queens) if is_white else (gs.white_bishops | gs.white_queens)):
+    if bishop_attacks(king_sq, occ) & ((gs.black_bishops | gs.black_queens) if white_to_move else (gs.white_bishops | gs.white_queens)):
         return True
-    if rook_attacks(king_sq, occ) & ((gs.black_rooks | gs.black_queens) if is_white else (gs.white_rooks | gs.white_queens)):
+    if rook_attacks(king_sq, occ) & ((gs.black_rooks | gs.black_queens) if white_to_move else (gs.white_rooks | gs.white_queens)):
         return True
-    if king_attacks(king_sq) & (gs.black_king if is_white else gs.white_king):
+    if king_attacks(king_sq) & (gs.black_king if white_to_move else gs.white_king):
         return True
 
     return False
 
 @njit
-def attack_map_numba(gs, is_white: bool):
+def attack_map_numba(gs, white_to_move: bool):
     occ = gs.occupied
     attacks = uint64(0)
 
-    pawns   = gs.white_pawns if is_white else gs.black_pawns
-    knights = gs.white_knights if is_white else gs.black_knights
-    bishops = gs.white_bishops if is_white else gs.black_bishops
-    rooks   = gs.white_rooks if is_white else gs.black_rooks
-    queens  = gs.white_queens if is_white else gs.black_queens
-    king    = gs.white_king if is_white else gs.black_king
+    pawns   = gs.white_pawns if white_to_move else gs.black_pawns
+    knights = gs.white_knights if white_to_move else gs.black_knights
+    bishops = gs.white_bishops if white_to_move else gs.black_bishops
+    rooks   = gs.white_rooks if white_to_move else gs.black_rooks
+    queens  = gs.white_queens if white_to_move else gs.black_queens
+    king    = gs.white_king if white_to_move else gs.black_king
 
     while pawns:
         sq, pawns = pop_lsb(pawns)
-        attacks |= pawn_attacks(sq, is_white)
+        attacks |= pawn_attacks(sq, white_to_move)
 
     while knights:
         sq, knights = pop_lsb(knights)

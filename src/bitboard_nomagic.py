@@ -16,8 +16,8 @@ def king_attacks(square: int) -> np.uint64:
     return KING_ATTACKS[square]
 
 @njit
-def pawn_attacks(square: int, is_white: bool) -> np.uint64:
-    return WHITE_PAWN_ATTACKS[square] if is_white else BLACK_PAWN_ATTACKS[square]
+def pawn_attacks(square: int, white_to_move: bool) -> np.uint64:
+    return WHITE_PAWN_ATTACKS[square] if white_to_move else BLACK_PAWN_ATTACKS[square]
 
 @njit
 def precompute_lookup_tables(knight_attacks, king_attacks, wp_attacks, bp_attacks):

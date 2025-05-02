@@ -256,7 +256,7 @@ def evaluate_pawn_structure(pawn_structure):
     return np.int16(score)
 
 @njit
-def rook_open_files(gs, is_white):
+def rook_open_files(gs, white_to_move):
     board = gs.board
     bonus = 0
     for c in range(8):
@@ -267,37 +267,37 @@ def rook_open_files(gs, is_white):
                 break
         if file_empty:
             for r in range(8):
-                if board[r, c] == (ROOK if is_white else -ROOK):
+                if board[r, c] == (ROOK if white_to_move else -ROOK):
                     bonus += ROOK_OPEN_FILE_BONUS
     return np.int16(bonus)
 
 @njit
-def passed_pawn_bonus(gs, is_white):
+def passed_pawn_bonus(gs, white_to_move):
     board = gs.board
     bonus = 0
-    direction = -1 if is_white else 1
+    direction = -1 if white_to_move else 1
     for r in range(8):
         for c in range(8):
             piece = board[r, c]
-            if piece == (PAWN if is_white else -PAWN):
+            if piece == (PAWN if white_to_move else -PAWN):
                 passed = True
-                for dr in range(r + direction, 8 if is_white else -1, direction):
+                for dr in range(r + direction, 8 if white_to_move else -1, direction):
                     for dc in (c-1, c, c+1):
                         if 0 <= dc < 8:
-                            if board[dr, dc] == (-PAWN if is_white else PAWN):
+                            if board[dr, dc] == (-PAWN if white_to_move else PAWN):
                                 passed = False
                                 break
                     if not passed:
                         break
                 if passed:
-                    advance = (7 - r) if is_white else r
+                    advance = (7 - r) if white_to_move else r
                     bonus += PASSED_PAWN_BONUS + (advance * 5)
     return np.int16(bonus)
 
 @njit
-def attack_king_zone(gs, is_white):
+def attack_king_zone(gs, white_to_move):
     board = gs.board
-    king_piece = KING if is_white else -KING
+    king_piece = KING if white_to_move else -KING
     bonus = 0
 
     # Locate king
@@ -326,7 +326,7 @@ def attack_king_zone(gs, is_white):
     # Count how many attackers
     for r, c in danger_zone:
         piece = board[r, c]
-        if (piece > 0) != is_white and piece != EMPTY:
+        if (piece > 0) != white_to_move and piece != EMPTY:
             piece_type = abs(piece)
             if piece_type == QUEEN:
                 bonus += 50
@@ -340,12 +340,12 @@ def attack_king_zone(gs, is_white):
     return np.int16(bonus)
 
 @njit
-def pseudo_pawn_moves(gs, from_row, from_col, is_white):
+def pseudo_pawn_moves(gs, from_row, from_col, white_to_move):
     board = gs.board
     count = 0
-    direction = -1 if is_white else 1
-    start_row = 6 if is_white else 1
-    promotion_row = 0 if is_white else 7
+    direction = -1 if white_to_move else 1
+    start_row = 6 if white_to_move else 1
+    promotion_row = 0 if white_to_move else 7
     to_row = from_row + direction
 
     if 0 <= to_row < 8:
@@ -360,14 +360,14 @@ def pseudo_pawn_moves(gs, from_row, from_col, is_white):
             to_col = from_col + dc
             if 0 <= to_col < 8:
                 target = board[to_row, to_col]
-                if target != EMPTY and (target > 0) != is_white:
+                if target != EMPTY and (target > 0) != white_to_move:
                     count += 1
                 if (to_row, to_col) == (gs.en_passant_target[0], gs.en_passant_target[1]):
                     count += 1
     return count
 
 @njit
-def pseudo_knight_moves(gs, from_row, from_col, is_white):
+def pseudo_knight_moves(gs, from_row, from_col, white_to_move):
     board = gs.board
     count = 0
     for i in range(KNIGHT_MOVES.shape[0]):
@@ -376,12 +376,12 @@ def pseudo_knight_moves(gs, from_row, from_col, is_white):
         to_col = from_col + dc
         if 0 <= to_row < 8 and 0 <= to_col < 8:
             target = board[to_row, to_col]
-            if target == EMPTY or (target > 0) != is_white:
+            if target == EMPTY or (target > 0) != white_to_move:
                 count += 1
     return count
 
 @njit
-def pseudo_slider_moves(gs, from_row, from_col, is_white, directions):
+def pseudo_slider_moves(gs, from_row, from_col, white_to_move, directions):
     board = gs.board
     count = 0
     for i in range(directions.shape[0]):
@@ -394,7 +394,7 @@ def pseudo_slider_moves(gs, from_row, from_col, is_white, directions):
             target = board[to_row, to_col]
             if target == EMPTY:
                 count += 1
-            elif (target > 0) != is_white:
+            elif (target > 0) != white_to_move:
                 count += 1
                 break
             else:
@@ -402,7 +402,7 @@ def pseudo_slider_moves(gs, from_row, from_col, is_white, directions):
     return count
 
 @njit
-def pseudo_king_moves(gs, from_row, from_col, is_white):
+def pseudo_king_moves(gs, from_row, from_col, white_to_move):
     board = gs.board
     count = 0
     for dr in (-1, 0, 1):
@@ -413,42 +413,42 @@ def pseudo_king_moves(gs, from_row, from_col, is_white):
             to_col = from_col + dc
             if 0 <= to_row < 8 and 0 <= to_col < 8:
                 target = board[to_row, to_col]
-                if target == EMPTY or (target > 0) != is_white:
+                if target == EMPTY or (target > 0) != white_to_move:
                     count += 1
     return count
 
 
 @njit
-def mobility_score(gs, is_white):
+def mobility_score(gs, white_to_move):
     board = gs.board
     score = 0
     for from_row in range(8):
         for from_col in range(8):
             piece = board[from_row, from_col]
-            if piece == EMPTY or (piece > 0) != is_white:
+            if piece == EMPTY or (piece > 0) != white_to_move:
                 continue
             abs_piece = abs(piece)
 
             if abs_piece == PAWN:
-                score += pseudo_pawn_moves(gs, from_row, from_col, is_white)
+                score += pseudo_pawn_moves(gs, from_row, from_col, white_to_move)
             elif abs_piece == KNIGHT:
-                score += pseudo_knight_moves(gs, from_row, from_col, is_white)
+                score += pseudo_knight_moves(gs, from_row, from_col, white_to_move)
             elif abs_piece == BISHOP:
-                score += pseudo_slider_moves(gs, from_row, from_col, is_white, BISHOP_MOVES)
+                score += pseudo_slider_moves(gs, from_row, from_col, white_to_move, BISHOP_MOVES)
             elif abs_piece == ROOK:
-                score += pseudo_slider_moves(gs, from_row, from_col, is_white, ROOK_MOVES)
+                score += pseudo_slider_moves(gs, from_row, from_col, white_to_move, ROOK_MOVES)
             elif abs_piece == QUEEN:
-                score += pseudo_slider_moves(gs, from_row, from_col, is_white, QUEEN_MOVES)
+                score += pseudo_slider_moves(gs, from_row, from_col, white_to_move, QUEEN_MOVES)
             elif abs_piece == KING:
-                score += pseudo_king_moves(gs, from_row, from_col, is_white)
+                score += pseudo_king_moves(gs, from_row, from_col, white_to_move)
 
     return np.int16(score * MOBILITY_BONUS)
 
 @njit
-def king_safety_penalty(gs, is_white):
+def king_safety_penalty(gs, white_to_move):
     board = gs.board
-    king_piece = KING if is_white else -KING
-    row = 7 if is_white else 0
+    king_piece = KING if white_to_move else -KING
+    row = 7 if white_to_move else 0
     king_row, king_col = -1, -1
     for r in range(8):
         for c in range(8):
@@ -462,7 +462,7 @@ def king_safety_penalty(gs, is_white):
         return 0
 
     penalty = 0
-    forward = -1 if is_white else 1
+    forward = -1 if white_to_move else 1
     shield_rows = [king_row + forward * i for i in range(1, 3)]
 
     for sr in shield_rows:
@@ -470,48 +470,48 @@ def king_safety_penalty(gs, is_white):
             for dc in [-1, 0, 1]:
                 sc = king_col + dc
                 if 0 <= sc < 8:
-                    if board[sr, sc] != (PAWN if is_white else -PAWN):
+                    if board[sr, sc] != (PAWN if white_to_move else -PAWN):
                         penalty += KING_SAFETY_PENALTY
     return np.int16(penalty)
 
 @njit
-def passed_pawns_bonus(gs, is_white):
+def passed_pawns_bonus(gs, white_to_move):
     board = gs.board
     count = 0
     for col in range(8):
-        for row in (range(6, -1, -1) if is_white else range(1, 8)):
+        for row in (range(6, -1, -1) if white_to_move else range(1, 8)):
             piece = board[row, col]
-            if (piece == PAWN if is_white else piece == -PAWN):
+            if (piece == PAWN if white_to_move else piece == -PAWN):
                 blocked = False
                 for dr in range(1, 8):
-                    r = row - dr if is_white else row + dr
+                    r = row - dr if white_to_move else row + dr
                     if 0 <= r < 8:
                         for dc in [-1, 0, 1]:
                             c = col + dc
                             if 0 <= c < 8:
                                 enemy = board[r, c]
-                                if (enemy > 0) != is_white and abs(enemy) == PAWN:
+                                if (enemy > 0) != white_to_move and abs(enemy) == PAWN:
                                     blocked = True
                 if not blocked:
                     count += 1
     return np.int16(count * PASSED_PAWN_BONUS)
 
 @njit
-def connected_passed_pawns_bonus(gs, is_white):
+def connected_passed_pawns_bonus(gs, white_to_move):
     board = gs.board
     count = 0
-    direction = -1 if is_white else 1
+    direction = -1 if white_to_move else 1
     passed = np.zeros(8, dtype=np.bool_)
 
     for r in range(8):
         for c in range(8):
             piece = board[r, c]
-            if piece == (PAWN if is_white else -PAWN):
+            if piece == (PAWN if white_to_move else -PAWN):
                 is_passed = True
-                for dr in range(r + direction, 8 if is_white else -1, direction):
+                for dr in range(r + direction, 8 if white_to_move else -1, direction):
                     for dc in (c-1, c, c+1):
                         if 0 <= dc < 8:
-                            if board[dr, dc] == (-PAWN if is_white else PAWN):
+                            if board[dr, dc] == (-PAWN if white_to_move else PAWN):
                                 is_passed = False
                                 break
                     if not is_passed:
@@ -526,7 +526,7 @@ def connected_passed_pawns_bonus(gs, is_white):
     return np.int16(count * CONNECTED_PASSED_PAWN_BONUS)
 
 @njit
-def coordination_bonus(gs, is_white):
+def coordination_bonus(gs, white_to_move):
     # Very simple: count double attacks
     board = gs.board
     attack_map = np.zeros((8,8), dtype=np.int16)
@@ -535,7 +535,7 @@ def coordination_bonus(gs, is_white):
     for from_row in range(8):
         for from_col in range(8):
             piece = board[from_row, from_col]
-            if piece == EMPTY or (piece > 0) != is_white:
+            if piece == EMPTY or (piece > 0) != white_to_move:
                 continue
             abs_piece = abs(piece)
 
@@ -567,19 +567,19 @@ def coordination_bonus(gs, is_white):
     return np.int16(score * COORDINATION_BONUS)
 
 @njit
-def center_control_bonus(gs, is_white):
+def center_control_bonus(gs, white_to_move):
     board = gs.board
     bonus = 0
     centers = [(3, 3), (3, 4), (4, 3), (4, 4)]
     for r, c in centers:
         piece = board[r, c]
-        if piece != EMPTY and (piece > 0) == is_white:
+        if piece != EMPTY and (piece > 0) == white_to_move:
             bonus += CENTER_CONTROL_BONUS
             
     return np.int16(bonus)
 
 @njit
-def rooks_open_files(gs, is_white):
+def rooks_open_files(gs, white_to_move):
     board = gs.board
     bonus = 0
     for col in range(8):
@@ -587,14 +587,14 @@ def rooks_open_files(gs, is_white):
         has_enemy_pawn = False
         for row in range(8):
             piece = board[row, col]
-            if piece == (PAWN if is_white else -PAWN):
+            if piece == (PAWN if white_to_move else -PAWN):
                 has_friendly_pawn = True
-            elif piece == (-PAWN if is_white else PAWN):
+            elif piece == (-PAWN if white_to_move else PAWN):
                 has_enemy_pawn = True
 
         for row in range(8):
             piece = board[row, col]
-            if piece == (ROOK if is_white else -ROOK):
+            if piece == (ROOK if white_to_move else -ROOK):
                 if not has_friendly_pawn and not has_enemy_pawn:
                     bonus += ROOK_OPEN_FILE_BONUS
                 elif not has_friendly_pawn:
@@ -602,36 +602,36 @@ def rooks_open_files(gs, is_white):
     return np.int16(bonus)
 
 @njit
-def knight_outpost_bonus(gs, is_white):
+def knight_outpost_bonus(gs, white_to_move):
     board = gs.board
     knight_outposts = 0
     for r in range(8):
         for c in range(8):
             piece = board[r, c]
-            if piece == (KNIGHT if is_white else -KNIGHT):
-                if ((is_white and r <= 4) or (not is_white and r >= 3)):  # advanced
+            if piece == (KNIGHT if white_to_move else -KNIGHT):
+                if ((white_to_move and r <= 4) or (not white_to_move and r >= 3)):  # advanced
                     # Check supporting pawn
-                    if is_white and r+1 < 8:
+                    if white_to_move and r+1 < 8:
                         if (c-1 >= 0 and board[r+1, c-1] == PAWN) or (c+1 < 8 and board[r+1, c+1] == PAWN):
                             knight_outposts += 1
-                    if not is_white and r-1 >= 0:
+                    if not white_to_move and r-1 >= 0:
                         if (c-1 >= 0 and board[r-1, c-1] == -PAWN) or (c+1 < 8 and board[r-1, c+1] == -PAWN):
                             knight_outposts += 1
     return np.int16(knight_outposts * KNIGHT_OUTPOST_BONUS)
 
 @njit
-def superfluous_knights_penalty(gs, is_white):
+def superfluous_knights_penalty(gs, white_to_move):
     board = gs.board
     penalty = 0
     for r in range(8):
         for c in range(8):
-            if board[r, c] == (KNIGHT if is_white else -KNIGHT):
+            if board[r, c] == (KNIGHT if white_to_move else -KNIGHT):
                 knight_neighbors = 0
                 for dr, dc in KNIGHT_MOVES:
                     rr = r + dr
                     cc = c + dc
                     if 0 <= rr < 8 and 0 <= cc < 8:
-                        if board[rr, cc] == (KNIGHT if is_white else -KNIGHT):
+                        if board[rr, cc] == (KNIGHT if white_to_move else -KNIGHT):
                             knight_neighbors += 1
                 if knight_neighbors > 0:
                     penalty += SUPERFLUOUS_KNIGHTS_PENALTY
@@ -639,13 +639,13 @@ def superfluous_knights_penalty(gs, is_white):
     return np.int16(penalty)
 
 @njit
-def bad_bishop_penalty(gs, is_white):
+def bad_bishop_penalty(gs, white_to_move):
     board = gs.board
     num_bad = 0
     for r in range(8):
         for c in range(8):
             piece = board[r, c]
-            if piece == (BISHOP if is_white else -BISHOP):
+            if piece == (BISHOP if white_to_move else -BISHOP):
                 color = (r + c) % 2
                 for dr in [-1, 1]:
                     for dc in [-1, 1]:
@@ -654,7 +654,7 @@ def bad_bishop_penalty(gs, is_white):
                             nc = c + dc*i
                             if 0 <= nr < 8 and 0 <= nc < 8:
                                 blocker = board[nr, nc]
-                                if (blocker == PAWN if is_white else blocker == -PAWN):
+                                if (blocker == PAWN if white_to_move else blocker == -PAWN):
                                     num_bad += 1
                                     break
                             else:
@@ -662,13 +662,13 @@ def bad_bishop_penalty(gs, is_white):
     return np.int16(num_bad * BAD_BISHOP_PENALTY)
 
 @njit
-def bishop_pair_bonus(gs, is_white):
+def bishop_pair_bonus(gs, white_to_move):
     board = gs.board
     num_bishops = 0
     for r in range(8):
         for c in range(8):
             piece = board[r, c]
-            if piece == (BISHOP if is_white else -BISHOP):
+            if piece == (BISHOP if white_to_move else -BISHOP):
                 num_bishops += 1
                 
     return np.int16(BISHOP_PAIR_BONUS if num_bishops==2 else 0)

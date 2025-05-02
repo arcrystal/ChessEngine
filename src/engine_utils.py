@@ -245,21 +245,21 @@ def undo_move(gs, move, moving_piece, captured_piece, prev_en_passant, prev_cast
     gs.halfmove_clock = prev_halfmove_clock
     
 @njit
-def is_square_attacked(gs, target_row, target_col, attacker_is_white):
+def is_square_attacked(gs, target_row, target_col, attacker_white_to_move):
     for i in range(KNIGHT_MOVES.shape[0]):
         dr, dc = KNIGHT_MOVES[i]
         r, c = target_row + dr, target_col + dc
         if 0 <= r < 8 and 0 <= c < 8:
             piece = gs.board[r, c]
-            if (piece > 0) == attacker_is_white and abs(piece) == KNIGHT:
+            if (piece > 0) == attacker_white_to_move and abs(piece) == KNIGHT:
                 return True
 
-    direction = -1 if attacker_is_white else 1
+    direction = -1 if attacker_white_to_move else 1
     for dc in [-1, 1]:
         r, c = target_row + direction, target_col + dc
         if 0 <= r < 8 and 0 <= c < 8:
             piece = gs.board[r, c]
-            if (piece > 0) == attacker_is_white and abs(piece) == PAWN:
+            if (piece > 0) == attacker_white_to_move and abs(piece) == PAWN:
                 return True
 
     for i in range(QUEEN_MOVES.shape[0]):
@@ -271,7 +271,7 @@ def is_square_attacked(gs, target_row, target_col, attacker_is_white):
             piece = gs.board[r, c]
             if piece == EMPTY:
                 continue
-            if (piece > 0) == attacker_is_white:
+            if (piece > 0) == attacker_white_to_move:
                 abs_piece = abs(piece)
                 if (dr == 0 or dc == 0) and abs_piece in (ROOK, QUEEN):
                     return True
@@ -286,7 +286,7 @@ def is_square_attacked(gs, target_row, target_col, attacker_is_white):
             r, c = target_row + dr, target_col + dc
             if 0 <= r < 8 and 0 <= c < 8:
                 piece = gs.board[r, c]
-                if (piece > 0) == attacker_is_white and abs(piece) == KING:
+                if (piece > 0) == attacker_white_to_move and abs(piece) == KING:
                     return True
 
     return False

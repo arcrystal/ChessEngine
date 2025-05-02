@@ -8,12 +8,12 @@ from bitboard_gamestate_utils import attack_map_numba
 
 
 @njit
-def generate_pawn_moves(gs, pawns, is_white):
+def generate_pawn_moves(gs, pawns, white_to_move):
     moves = []
     empty = ~gs.occupied
-    enemy = gs.black_occupancy if is_white else gs.white_occupancy
+    enemy = gs.black_occupancy if white_to_move else gs.white_occupancy
 
-    if is_white:
+    if white_to_move:
         single_push = (pawns << 8) & empty
         double_push = ((single_push & rank_mask(2)) << 8) & empty
         left_attacks = (pawns << 7) & enemy & ~file_mask(7)
@@ -52,7 +52,7 @@ def generate_pawn_moves(gs, pawns, is_white):
     temp = left_attacks
     while temp:
         to_sq, temp = pop_lsb(temp)
-        from_sq = to_sq - (7 if is_white else -9)
+        from_sq = to_sq - (7 if white_to_move else -9)
         if from_sq // 8 == promo_rank:
             for promo in (QUEEN, ROOK, BISHOP, KNIGHT):
                 moves.append((from_sq, to_sq, promo))
@@ -63,7 +63,7 @@ def generate_pawn_moves(gs, pawns, is_white):
     temp = right_attacks
     while temp:
         to_sq, temp = pop_lsb(temp)
-        from_sq = to_sq - (9 if is_white else -7)
+        from_sq = to_sq - (9 if white_to_move else -7)
         if from_sq // 8 == promo_rank:
             for promo in (QUEEN, ROOK, BISHOP, KNIGHT):
                 moves.append((from_sq, to_sq, promo))
@@ -82,17 +82,17 @@ def generate_pawn_moves(gs, pawns, is_white):
             from_sq, temp = pop_lsb(temp)
             from_file = from_sq % 8
             if abs(from_file - ep_file) == 1:
-                if is_white and (from_sq + 7 == ep_sq or from_sq + 9 == ep_sq):
+                if white_to_move and (from_sq + 7 == ep_sq or from_sq + 9 == ep_sq):
                     moves.append((from_sq, (ep_sq), 0))
-                elif not is_white and (from_sq - 9 == ep_sq or from_sq - 7 == ep_sq):
+                elif not white_to_move and (from_sq - 9 == ep_sq or from_sq - 7 == ep_sq):
                     moves.append((from_sq, (ep_sq), 0))
 
     return moves
 
 @njit
-def generate_knight_moves(gs, knights, is_white):
+def generate_knight_moves(gs, knights, white_to_move):
     moves = []
-    own_pieces = gs.white_occupancy if is_white else gs.black_occupancy
+    own_pieces = gs.white_occupancy if white_to_move else gs.black_occupancy
     while knights:
         from_sq, knights = pop_lsb(knights)
         attacks = knight_attacks(from_sq) & ~own_pieces
@@ -102,11 +102,11 @@ def generate_knight_moves(gs, knights, is_white):
     return moves
 
 @njit
-def generate_king_moves(gs, king_bb, is_white):
+def generate_king_moves(gs, king_bb, white_to_move):
     moves = []
     from_sq = pop_lsb(king_bb)[0]
-    own_pieces = gs.white_occupancy if is_white else gs.black_occupancy
-    enemy_attacks = attack_map_numba(gs, not is_white)
+    own_pieces = gs.white_occupancy if white_to_move else gs.black_occupancy
+    enemy_attacks = attack_map_numba(gs, not white_to_move)
     legal = king_attacks(from_sq) & ~own_pieces & ~enemy_attacks
     while legal:
         to_sq, legal = pop_lsb(legal)
@@ -114,9 +114,9 @@ def generate_king_moves(gs, king_bb, is_white):
     return moves
 
 @njit
-def generate_bishop_moves(gs, bishops, is_white):
+def generate_bishop_moves(gs, bishops, white_to_move):
     moves = []
-    own_pieces = gs.white_occupancy if is_white else gs.black_occupancy
+    own_pieces = gs.white_occupancy if white_to_move else gs.black_occupancy
     temp = bishops
     while temp:
         from_sq, temp = pop_lsb(temp)
@@ -127,9 +127,9 @@ def generate_bishop_moves(gs, bishops, is_white):
     return moves
 
 @njit
-def generate_rook_moves(gs, rooks, is_white):
+def generate_rook_moves(gs, rooks, white_to_move):
     moves = []
-    own_pieces = gs.white_occupancy if is_white else gs.black_occupancy
+    own_pieces = gs.white_occupancy if white_to_move else gs.black_occupancy
     temp = rooks
     while temp:
         from_sq, temp = pop_lsb(temp)
@@ -140,9 +140,9 @@ def generate_rook_moves(gs, rooks, is_white):
     return moves
 
 @njit
-def generate_queen_moves(gs, queens, is_white):
+def generate_queen_moves(gs, queens, white_to_move):
     moves = []
-    own_pieces = gs.white_occupancy if is_white else gs.black_occupancy
+    own_pieces = gs.white_occupancy if white_to_move else gs.black_occupancy
     temp = queens
     while temp:
         from_sq, temp = pop_lsb(temp)
