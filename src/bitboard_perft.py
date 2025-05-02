@@ -1,13 +1,12 @@
 from bitboard_game import BitboardGameState
 from bitboard_gamestate_utils import is_check_numba, apply_move_numba, undo_move_numba, update_occupancies_numba
 from generate_moves import generate_all_moves
-
-from numba import uint64, boolean, types, njit
+from debugging import get_standard_algebraic
+from numba import uint64, types, njit
 from numba.typed import List
 
 import time
 import sys
-import functools
 import ast
 import chess
 
@@ -76,26 +75,49 @@ def bitboard_perft_sequences(gs, depth, outfile):
 def parse_tuple_list(s: str):
     return ast.literal_eval(s)
 
+import chess
+
 def validate(depth: int):
     with open(f"logs/moves_depth{depth}.txt", "r") as f:
         sequences = [parse_tuple_list(line) for line in f.readlines()]
         
-    n = 0
+    invalid_moves = 0
+    missing_moves = 0
+
+    # Organize sequences by their prefix of length `d`
+    from collections import defaultdict
+    prefix_map = defaultdict(list)
     for seq in sequences:
+        for d in range(len(seq)):
+            prefix = tuple(seq[:d])
+            move = seq[d]
+            prefix_map[prefix].append(move)
+
+    for prefix, logged_moves in prefix_map.items():
         board = chess.Board()
-        moves = [chess.Move(move[0], move[1]) for move in seq]
-        for move in moves:
-            if move not in board.legal_moves:
-                msg = str(move) + " invalid from "
-                for m in moves:
-                    msg += str(m) + ", "
-                print(msg[:-2])
-                n += 1
-                break
-            
-            board.push(move)
-            
-    print(f"{n} invalid moves")
+        for move_tuple in prefix:
+            board.push(chess.Move(move_tuple[0], move_tuple[1]))
+
+        legal = set(board.legal_moves)
+        logged = set(chess.Move(m[0], m[1]) for m in logged_moves)
+
+        # Check for invalid moves (logged but illegal)
+        for move in logged:
+            if move not in legal:
+                print(f"{move} invalid from {prefix}")
+                invalid_moves += 1
+
+        # Check for missing legal moves (legal but not logged)
+        for move in legal:
+            if move not in logged:
+                prefix_str = "("
+                for p in prefix:
+                    prefix_str += get_standard_algebraic(p) + ", "
+                print(f"({move}) missing after {prefix_str[:-2]})")
+                missing_moves += 1
+
+    print(f"{invalid_moves} invalid moves")
+    print(f"{missing_moves} missing moves")
 
 # ========= ^ FOR DEBUGGING =========
 # ===================================
@@ -105,7 +127,7 @@ if __name__ == "__main__":
     correct_nodes = [1, 20, 400, 8902, 197281, 4865609]
     gs = BitboardGameState()
     if len(sys.argv) > 1:
-        print("Logging moves...")
+        print("Logging and validating moves...")
         depth = int(sys.argv[1])
         with open(f"logs/moves_depth{depth}.txt", "w") as f:
             print()
