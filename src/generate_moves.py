@@ -10,7 +10,6 @@ from bitboard_gamestate_utils import attack_map_numba
 @njit
 def generate_pawn_moves(gs, pawns, is_white):
     moves = []
-
     empty = ~gs.occupied
     enemy = gs.black_occupancy if is_white else gs.white_occupancy
 
@@ -91,19 +90,6 @@ def generate_pawn_moves(gs, pawns, is_white):
     return moves
 
 @njit
-def generate_slider_moves(gs, pieces, is_white, attack_fn):
-    moves = []
-    own_pieces = gs.white_occupancy if is_white else gs.black_occupancy
-    temp = pieces
-    while temp:
-        from_sq, temp = pop_lsb(temp)
-        attacks = attack_fn(from_sq, gs.occupied) & ~own_pieces
-        while attacks:
-            to_sq, attacks = pop_lsb(attacks)
-            moves.append((from_sq, to_sq, 0))
-    return moves
-
-@njit
 def generate_knight_moves(gs, knights, is_white):
     moves = []
     own_pieces = gs.white_occupancy if is_white else gs.black_occupancy
@@ -128,40 +114,61 @@ def generate_king_moves(gs, king_bb, is_white):
     return moves
 
 @njit
+def generate_bishop_moves(gs, bishops, is_white):
+    moves = []
+    own_pieces = gs.white_occupancy if is_white else gs.black_occupancy
+    temp = bishops
+    while temp:
+        from_sq, temp = pop_lsb(temp)
+        attacks = bishop_attacks(from_sq, gs.occupied) & ~own_pieces
+        while attacks:
+            to_sq, attacks = pop_lsb(attacks)
+            moves.append((from_sq, to_sq, 0))
+    return moves
+
+@njit
+def generate_rook_moves(gs, rooks, is_white):
+    moves = []
+    own_pieces = gs.white_occupancy if is_white else gs.black_occupancy
+    temp = rooks
+    while temp:
+        from_sq, temp = pop_lsb(temp)
+        attacks = rook_attacks(from_sq, gs.occupied) & ~own_pieces
+        while attacks:
+            to_sq, attacks = pop_lsb(attacks)
+            moves.append((from_sq, to_sq, 0))
+    return moves
+
+@njit
+def generate_queen_moves(gs, queens, is_white):
+    moves = []
+    own_pieces = gs.white_occupancy if is_white else gs.black_occupancy
+    temp = queens
+    while temp:
+        from_sq, temp = pop_lsb(temp)
+        attacks = queen_attacks(from_sq, gs.occupied) & ~own_pieces
+        while attacks:
+            to_sq, attacks = pop_lsb(attacks)
+            moves.append((from_sq, to_sq, 0))
+    return moves
+
+@njit
 def generate_all_moves(gs):
     if gs.white_to_move:
         return (
             generate_pawn_moves(gs, gs.white_pawns, True)
             + generate_knight_moves(gs, gs.white_knights, True)
-            + generate_slider_moves(gs, gs.white_bishops, True, bishop_attacks)
-            + generate_slider_moves(gs, gs.white_rooks, True, rook_attacks)
-            + generate_slider_moves(gs, gs.white_queens, True, queen_attacks)
+            + generate_bishop_moves(gs, gs.white_bishops, True)
+            + generate_rook_moves(gs, gs.white_rooks, True)
+            + generate_queen_moves(gs, gs.white_queens, True)
             + generate_king_moves(gs, gs.white_king, True)
         )
     else:
         return (
             generate_pawn_moves(gs, gs.black_pawns, False)
             + generate_knight_moves(gs, gs.black_knights, False)
-            + generate_slider_moves(gs, gs.black_bishops, False, bishop_attacks)
-            + generate_slider_moves(gs, gs.black_rooks, False, rook_attacks)
-            + generate_slider_moves(gs, gs.black_queens, False, queen_attacks)
+            + generate_bishop_moves(gs, gs.black_bishops, False)
+            + generate_rook_moves(gs, gs.black_rooks, False)
+            + generate_queen_moves(gs, gs.black_queens, False)
             + generate_king_moves(gs, gs.black_king, False)
         )
-        
-# def generate_all_moves(gs, verbose=False):
-#     if gs.white_to_move:
-#         return generate_pawn_moves(gs, int(gs.white_pawns), True, verbose=True) \
-#         + generate_knight_moves(gs, int(gs.white_knights), True, verbose=verbose) \
-#         + generate_bishop_moves(gs, int(gs.white_bishops), True, verbose=verbose) \
-#         + generate_rook_moves(gs, int(gs.white_rooks), True, verbose=verbose) \
-#         + generate_queen_moves(gs, int(gs.white_queens), True, verbose=verbose) \
-#         + generate_king_moves(gs, int(gs.white_king), True, verbose=verbose) \
-#         + generate_castling_moves(gs, True, verbose=verbose)
-
-#     return generate_pawn_moves(gs, int(gs.black_pawns), False, verbose=verbose) \
-#     + generate_knight_moves(gs, int(gs.black_knights), False, verbose=verbose) \
-#     + generate_bishop_moves(gs, int(gs.black_bishops), False, verbose=verbose) \
-#     + generate_rook_moves(gs, int(gs.black_rooks), False, verbose=verbose) \
-#     + generate_queen_moves(gs, int(gs.black_queens), False, verbose=verbose) \
-#     + generate_king_moves(gs, int(gs.black_king), False, verbose=verbose) \
-#     + generate_castling_moves(gs, False, verbose=verbose)

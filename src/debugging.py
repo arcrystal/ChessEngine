@@ -69,3 +69,5 @@ def get_standard_algebraic(move_or_loc):
         return f"{from_square_algebraic}{to_square_algebraic}"
     else:
         return index_to_square(move_or_loc)
+    
+

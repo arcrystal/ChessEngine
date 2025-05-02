@@ -3,7 +3,7 @@ from numba import uint64, njit
 
 
 @njit
-def pop_lsb(bb: uint64) -> tuple:
+def pop_lsb(bb) -> tuple:
     if bb == np.uint64(0):
         return -1, np.uint64(0)
 

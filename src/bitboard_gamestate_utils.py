@@ -4,6 +4,7 @@ from bitboard_nomagic import pawn_attacks, king_attacks, knight_attacks
 from bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
 from numba import int8, int32, int64
 from bitboard_utils import pop_lsb
+
 @njit
 def update_occupancies_numba(gs):
     gs.white_occupancy = (
@@ -31,12 +32,9 @@ def make_move_state(gs):
         uint64(gs.black_rooks),
         uint64(gs.black_queens),
         uint64(gs.black_king),
-        uint64(gs.white_occupancy),
-        uint64(gs.black_occupancy),
-        uint64(gs.occupied),
         gs.white_to_move,
         (int8(gs.castling_rights[0]), int8(gs.castling_rights[1]), int8(gs.castling_rights[2]), int8(gs.castling_rights[3])),
-        int64(gs.en_passant_target),
+        int32(gs.en_passant_target),
         int32(gs.halfmove_clock),
         int32(gs.fullmove_number)
     )   
@@ -106,11 +104,12 @@ def undo_move_numba(gs, move_info):
     (
         gs.white_pawns, gs.white_knights, gs.white_bishops, gs.white_rooks, gs.white_queens, gs.white_king,
         gs.black_pawns, gs.black_knights, gs.black_bishops, gs.black_rooks, gs.black_queens, gs.black_king,
-        gs.white_occupancy, gs.black_occupancy, gs.occupied,
         gs.white_to_move, prev_castling_rights, gs.en_passant_target, gs.halfmove_clock, gs.fullmove_number
     ) = move_info.pop()
     for i in range(4):
         gs.castling_rights[i] = prev_castling_rights[i]
+    
+    update_occupancies_numba(gs)
 
 @njit
 def is_check_numba(gs, is_white: bool) -> bool:
@@ -133,7 +132,7 @@ def is_check_numba(gs, is_white: bool) -> bool:
     return False
 
 @njit
-def attack_map_numba(gs, is_white: bool) -> uint64:
+def attack_map_numba(gs, is_white: bool):
     occ = gs.occupied
     attacks = uint64(0)
 
