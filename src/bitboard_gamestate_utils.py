@@ -32,11 +32,16 @@ def get_move_info(gs):
         uint64(gs.black_rooks),
         uint64(gs.black_queens),
         uint64(gs.black_king),
-        (int8(gs.castling_rights[0]), int8(gs.castling_rights[1]), int8(gs.castling_rights[2]), int8(gs.castling_rights[3])),
+        (
+            int8(gs.castling_rights[0]),
+            int8(gs.castling_rights[1]),
+            int8(gs.castling_rights[2]),
+            int8(gs.castling_rights[3])
+        ),
         int32(gs.en_passant_target),
         int32(gs.halfmove_clock),
         int32(gs.fullmove_number)
-    )   
+    ) 
 
 @njit
 def apply_move_numba(gs, move):
