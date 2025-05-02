@@ -6,6 +6,7 @@ from bitboard_nomagic import (
 )
 from bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
 from constants import KNIGHT, BISHOP, ROOK, QUEEN
+from bitboard_utils import attack_map_numba
 
 
 @njit
@@ -200,7 +201,7 @@ def generate_king_moves(gs, king, is_white, verbose=False):
     from_sq = int(np.log2(int(king)))  # Find king square
 
     own_pieces = gs.white_occupancy if is_white else gs.black_occupancy
-    enemy_attacks = gs.attack_map(not is_white)
+    enemy_attacks = attack_map_numba(gs, not is_white)
     legal_targets = king_attacks(from_sq) & int(~own_pieces) & int(~enemy_attacks)
 
     if verbose:
@@ -214,23 +215,6 @@ def generate_king_moves(gs, king, is_white, verbose=False):
         moves.append((np.int8(from_sq), np.int8(to_sq), np.int8(0)))
 
     return moves
-
-# def generate_king_moves(gs, king, is_white, verbose=False):
-#     moves = []
-#     own_pieces = np.uint64(gs.white_occupancy if is_white else gs.black_occupancy)
-#     from_sq = int(np.log2(int(king)))  # Find king square quickly
-#     attacks = np.uint64(king_attacks(from_sq)) & ~own_pieces
-#     if verbose:
-#         print(f"King moves from square {gs.get_standard_algebraic(from_sq)}")
-#         gs.print_board()
-#         gs.print_bitboard(attacks)
-#         print("--------\n")
-
-#     while attacks:
-#         to_sq, attacks = pop_lsb(attacks)
-#         moves.append((np.int8(from_sq), np.int8(to_sq), np.int8(0)))
-
-#     return moves
 
 def generate_castling_moves(gs, is_white, verbose=False):
     moves = []
@@ -290,17 +274,3 @@ def generate_all_moves(gs, verbose=False):
     + generate_queen_moves(gs, int(gs.black_queens), False, verbose=verbose) \
     + generate_king_moves(gs, int(gs.black_king), False, verbose=verbose) \
     + generate_castling_moves(gs, False, verbose=verbose)
-        
-# def generate_all_legal_moves(gs, verbose=False):
-#     """Generate only *legal* moves (no king left in check)."""
-#     legal_moves = []
-#     side_to_move = gs.white_to_move
-
-#     for move in generate_all_moves(gs, verbose):
-#         gs.make_move(move)
-#         if not gs.is_check(side_to_move):
-#             legal_moves.append(move)
-        
-#         gs.undo_move()
-        
-#     return legal_moves

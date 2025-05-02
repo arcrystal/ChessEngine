@@ -1,74 +1,70 @@
 import numpy as np
 from numba import njit
 
-# === Lookup Tables ===
 KNIGHT_ATTACKS = np.zeros(64, dtype=np.uint64)
 KING_ATTACKS = np.zeros(64, dtype=np.uint64)
 WHITE_PAWN_ATTACKS = np.zeros(64, dtype=np.uint64)
 BLACK_PAWN_ATTACKS = np.zeros(64, dtype=np.uint64)
 
-# === Basic Helpers ===
 @njit
-def square_mask(sq):
-    return int(np.uint64(1) << np.uint64(sq))
-
-
-# === Attack Access Functions ===
-@njit
-def knight_attacks(square):
-    return int(KNIGHT_ATTACKS[square])
+def square_mask(sq: int) -> np.uint64:
+    return np.uint64(1) << np.uint64(sq)
 
 @njit
-def king_attacks(square):
-    return int(KING_ATTACKS[square])
+def knight_attacks(square: int) -> np.uint64:
+    return KNIGHT_ATTACKS[square]
 
 @njit
-def pawn_attacks(square, is_white):
-    return int(WHITE_PAWN_ATTACKS[square] if is_white else BLACK_PAWN_ATTACKS[square])
+def king_attacks(square: int) -> np.uint64:
+    return KING_ATTACKS[square]
 
-# === Precompute Static Tables ===
-def precompute_lookup_tables(n_attacks, k_attacks, white_p_attacks, black_p_attacks):
-    KNIGHT_DELTAS = [(2, 1), (1, 2), (-1, 2), (-2, 1), (-2, -1), (-1, -2), (1, -2), (2, -1)]
-    KING_DELTAS = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
-    
+@njit
+def pawn_attacks(square: int, is_white: bool) -> np.uint64:
+    return WHITE_PAWN_ATTACKS[square] if is_white else BLACK_PAWN_ATTACKS[square]
+
+def precompute_lookup_tables():
+    knight_deltas = np.array([
+        (2, 1), (1, 2), (-1, 2), (-2, 1),
+        (-2, -1), (-1, -2), (1, -2), (2, -1)
+    ])
+    king_deltas = np.array([
+        (1, 0), (1, 1), (0, 1), (-1, 1),
+        (-1, 0), (-1, -1), (0, -1), (1, -1)
+    ])
+
     for sq in range(64):
-        r = sq // 8
-        f = sq % 8
+        r, f = divmod(sq, 8)
 
-        # Knight attacks
-        knight_attacks = 0
-        for dr, df in KNIGHT_DELTAS:
-            nr, nc = r + dr, f + df
-            if 0 <= nr < 8 and 0 <= nc < 8:
-                knight_attacks |= square_mask(nr * 8 + nc)
-        KNIGHT_ATTACKS[sq] = knight_attacks
+        # Knight
+        attacks = np.uint64(0)
+        for dr, df in knight_deltas:
+            nr, nf = r + dr, f + df
+            if 0 <= nr < 8 and 0 <= nf < 8:
+                attacks |= square_mask(nr * 8 + nf)
+        KNIGHT_ATTACKS[sq] = attacks
 
-        # King attacks
-        king_attacks = 0
-        for dr, df in KING_DELTAS:
-            nr, nc = r + dr, f + df
-            if 0 <= nr < 8 and 0 <= nc < 8:
-                king_attacks |= square_mask(nr * 8 + nc)
-        KING_ATTACKS[sq] = king_attacks
+        # King
+        attacks = np.uint64(0)
+        for dr, df in king_deltas:
+            nr, nf = r + dr, f + df
+            if 0 <= nr < 8 and 0 <= nf < 8:
+                attacks |= square_mask(nr * 8 + nf)
+        KING_ATTACKS[sq] = attacks
 
-        # Pawn attacks
-        # Pawn attacks
-        wp_attack = 0
-        bp_attack = 0
-
+        # White pawn
+        wp = np.uint64(0)
         if r < 7:
             if f > 0:
-                wp_attack |= square_mask((r + 1) * 8 + (f - 1))
+                wp |= square_mask((r + 1) * 8 + (f - 1))
             if f < 7:
-                wp_attack |= square_mask((r + 1) * 8 + (f + 1))
+                wp |= square_mask((r + 1) * 8 + (f + 1))
+        WHITE_PAWN_ATTACKS[sq] = wp
+
+        # Black pawn
+        bp = np.uint64(0)
         if r > 0:
             if f > 0:
-                bp_attack |= square_mask((r - 1) * 8 + (f - 1))
+                bp |= square_mask((r - 1) * 8 + (f - 1))
             if f < 7:
-                bp_attack |= square_mask((r - 1) * 8 + (f + 1))
-
-        WHITE_PAWN_ATTACKS[sq] = wp_attack
-        BLACK_PAWN_ATTACKS[sq] = bp_attack
-        
-
-precompute_lookup_tables(KNIGHT_ATTACKS, KING_ATTACKS, WHITE_PAWN_ATTACKS, BLACK_PAWN_ATTACKS)
+                bp |= square_mask((r - 1) * 8 + (f + 1))
+        BLACK_PAWN_ATTACKS[sq] = bp

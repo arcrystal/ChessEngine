@@ -23,9 +23,6 @@ def fast_perft(gs, depth):
     original_white_to_move = gs.white_to_move
 
     for move in moves:
-        moving_piece = gs.board[move[0], move[1]]
-        captured_piece = gs.board[move[2], move[3]]
-
         apply_move(gs, move)
         evaluate_board(gs)
         
@@ -44,7 +41,7 @@ def fast_perft(gs, depth):
 if __name__=="__main__":
     gs = GameState()
     start = time.time()
-    nodes = fast_perft(gs, 3)
+    nodes = fast_perft(gs, 5)
     runtime = time.time() - start
     print("Nodes:", nodes)
     print(f"Time: {round(runtime)}s")

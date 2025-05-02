@@ -1,12 +1,27 @@
 from bitboard_game import BitboardGameState
 from generate_moves import generate_all_moves
+from bitboard_utils import is_check_numba, apply_move_numba, undo_move_numba
 import time
 from functools import wraps
 
 # Validation tools
 import chess
 import ast
-from typing import List, Tuple
+
+from numba import uint64, boolean
+from numba import types
+from numba.typed import List
+
+move_state_type = types.Tuple((
+    uint64, uint64, uint64, uint64, uint64, uint64,   # white pieces
+    uint64, uint64, uint64, uint64, uint64, uint64,   # black pieces
+    uint64, uint64, uint64,                           # occupancies
+    boolean,                                          # white_to_move
+    types.UniTuple(types.int8, 4),                    # castling_rights
+    types.int64,                                      # en_passant_target
+    types.int32,                                      # halfmove_clock
+    types.int32                                       # fullmove_number
+))
 
 def timeit(func):
     @wraps(func)
@@ -20,25 +35,27 @@ def timeit(func):
 
 counts_set = set()
 
-def _bitboard_perft(gs, depth, verbose):
+def _bitboard_perft(gs, depth, verbose, move_info):
     if depth == 0:
         return 1
     
     nodes = 0
     moves = generate_all_moves(gs, verbose)
     for move in moves:
-        gs.make_move(move)
-        if not gs.is_check(not gs.white_to_move):
-            nodes += _bitboard_perft(gs, depth-1, verbose)
+        state = apply_move_numba(gs, move)
+        move_info.append(state)
+        if not is_check_numba(gs, not gs.white_to_move):
+            nodes += _bitboard_perft(gs, depth-1, verbose, move_info)
             
-        gs.undo_move()
+        undo_move_numba(gs, move_info)
         
     return nodes
 
 
 @timeit
 def bitboard_perft(gs, depth, verbose=False):
-    return _bitboard_perft(gs, depth, verbose)
+    move_info = List.empty_list(move_state_type)
+    return _bitboard_perft(gs, depth, verbose, move_info)
 
 def bitboard_perft_sequences(gs, depth, outfile):
     sequence = []
@@ -63,7 +80,7 @@ def _bitboard_perft_sequences(gs, depth, sequence, outfile):
 
 # VALIDATION
 
-def parse_tuple_list(s: str) -> List[Tuple[int]]:
+def parse_tuple_list(s: str):
     return ast.literal_eval(s)
 
 def validate(depth: int):
