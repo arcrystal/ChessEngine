@@ -1,5 +1,5 @@
 from bitboard_game import BitboardGameState
-from generate_moves import generate_knight_moves
+from bitboard_nomagic import knight_attacks
 from debugging import print_bitboard
 """
 8 56 57 58 59 60 61 62 63
@@ -14,5 +14,6 @@ from debugging import print_bitboard
 """
 
 gs = BitboardGameState()
-generate_knight_moves(gs, gs.white_knights, gs.white_to_move)
+attacks = knight_attacks(2)
+print_bitboard(attacks)
 exit()

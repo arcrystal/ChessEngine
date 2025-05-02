@@ -1,7 +1,7 @@
 
 from numba import njit
 import numpy as np
-from bitboard_magics import (
+from bitboard_magic_tables import (
     BISHOP_MASKS, BISHOP_MAGICS, BISHOP_SHIFTS,
     ROOK_MASKS, ROOK_MAGICS, ROOK_SHIFTS,
     bishop_attack_table, rook_attack_table,
