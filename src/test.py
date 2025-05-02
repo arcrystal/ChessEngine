@@ -2,7 +2,7 @@ from bitboard_game import BitboardGameState
 from bitboard_gamestate_utils import attack_map_numba, apply_move_numba, update_occupancies_numba, undo_move_numba
 from bitboard_nomagic import knight_attacks, king_attacks
 from bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
-from debugging import print_bitboard, get_standard_algebraic
+from debugging import print_bitboard, get_standard_algebraic, print_board
 from constants import board_str
 from bitboard_utils import rank_mask, file_mask
 from numba import uint64, boolean
@@ -32,22 +32,31 @@ for mv1 in generate_all_moves(gs):
     move_info.append(move)
     update_occupancies_numba(gs)
     gs.white_to_move = not gs.white_to_move
-    print("white_to_move:", gs.white_to_move)
-    all_d2_moves = generate_all_moves(gs)
-    if len(all_d2_moves) > 20:
-        print(mv1, "--> ")
-        for mv2 in all_d2_moves:
-            print(mv2, end=" ")
-        print()
-    for mv2 in all_d2_moves:
-        n += 1
+    for mv2 in generate_all_moves(gs):
+        move = apply_move_numba(gs, mv1)
+        move_info.append(move)
+        update_occupancies_numba(gs)
+        gs.white_to_move = not gs.white_to_move
+        for mv3 in generate_all_moves(gs):
+            n += 1
+
+        undo_move_numba(gs, move_info)
+        update_occupancies_numba(gs)
+        gs.white_to_move = not gs.white_to_move
+
 
     undo_move_numba(gs, move_info)
     update_occupancies_numba(gs)
     gs.white_to_move = not gs.white_to_move
 
-print("Moves @ depth=2:", n)
+print("Moves @ depth=3:", n)
 print()
+
+gs = BitboardGameState()
+move = apply_move_numba(gs, (6,23,0)) #g1h3
+update_occupancies_numba(gs)
+gs.white_to_move = not gs.white_to_move
+
 empty = ~gs.occupied
 enemy = gs.black_occupancy if gs.white_to_move else gs.white_occupancy
 pawns = gs.white_pawns if gs.white_to_move else gs.black_pawns
@@ -63,12 +72,9 @@ else:
     left_attacks = (pawns >> 9) & enemy & ~file_mask(7)
     right_attacks = (pawns >> 7) & enemy & ~file_mask(0)
 
-gs = BitboardGameState()
-all_moves = generate_all_moves(gs)
-for m in all_moves:
-    print(m)
-print("Num moves:", len(all_moves))
-
+print()
+print_board(gs)
+print()
 
 print("Pawn moves bb:")
 moves = (left_attacks | right_attacks | single_push | double_push)
@@ -98,7 +104,7 @@ for m in generate_knight_moves(gs, knights, gs.white_to_move):
     print(get_standard_algebraic(m))
 print()
 
-bishops = gs.white_bishops if gs.white_to_move else gs. black_bishops
+bishops = gs.white_bishops if gs.white_to_move else gs.black_bishops
 print("Bishop moves bb:")
 sq = 2 if gs.white_to_move else 58
 moves = bishop_attacks(sq, gs.occupied) & ~occupancy
