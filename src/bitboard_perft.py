@@ -18,7 +18,6 @@ warnings.simplefilter('ignore', category=Warning, lineno=0, append=False)
 move_state_type = types.Tuple((
     uint64, uint64, uint64, uint64, uint64, uint64,   # white pieces
     uint64, uint64, uint64, uint64, uint64, uint64,   # black pieces
-    boolean,                                          # white_to_move
     types.UniTuple(types.int8, 4),                    # castling_rights
     types.int64,                                      # en_passant_target
     types.int32,                                      # halfmove_clock
@@ -42,13 +41,15 @@ def _bitboard_perft(gs, depth, move_info):
     nodes = 0
     moves = generate_all_moves(gs)
     for move in moves:
-        state = apply_move_numba(gs, move)
-        move_info.append(state)
+        prev_state = apply_move_numba(gs, move)
+        move_info.append(prev_state)
         if not is_check_numba(gs, not gs.white_to_move):
             update_occupancies_numba(gs)
             gs.white_to_move = not gs.white_to_move
             nodes += _bitboard_perft(gs, depth - 1, move_info)
-        undo_move_numba(gs, move_info)
+            undo_move_numba(gs, move_info)
+            update_occupancies_numba(gs)
+            gs.white_to_move = not gs.white_to_move
 
     return nodes
 
@@ -58,24 +59,30 @@ def _bitboard_perft_sequences(gs, depth, sequence, outfile, move_info):
         return
 
     for move in generate_all_moves(gs):
-        state = apply_move_numba(gs, move)
+        prev_state = apply_move_numba(gs, move)
         if not is_check_numba(gs, not gs.white_to_move):
             update_occupancies_numba(gs)
             gs.white_to_move = not gs.white_to_move
-            move_info.append(state)
+            move_info.append(prev_state)
             sequence.append(move)
             _bitboard_perft_sequences(gs, depth-1, sequence, outfile, move_info)
             sequence.pop()
-        undo_move_numba(gs, move_info)
+            undo_move_numba(gs, move_info)
+            update_occupancies_numba(gs)
+            gs.white_to_move = not gs.white_to_move
 
     return
 
 @timeit
 def bitboard_perft(gs, depth):
-    return _bitboard_perft(gs, depth, List.empty_list(move_state_type))
+    move_info = List.empty_list(move_state_type)
+    return _bitboard_perft(gs, depth, move_info)
+
 
 def bitboard_perft_sequences(gs, depth, outfile):
-    _bitboard_perft_sequences(gs, depth, [], outfile, List.empty_list(move_state_type))
+    move_info = List.empty_list(move_state_type)
+    sequence = []
+    _bitboard_perft_sequences(gs, depth, sequence, outfile, move_info)
 
 def parse_tuple_list(s: str):
     return ast.literal_eval(s)

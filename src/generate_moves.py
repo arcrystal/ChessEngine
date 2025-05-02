@@ -4,7 +4,7 @@ from bitboard_nomagic import knight_attacks, king_attacks
 from bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
 from constants import KNIGHT, BISHOP, ROOK, QUEEN
 from bitboard_utils import pop_lsb, rank_mask, file_mask
-from bitboard_gamestate_utils import attack_map_numba
+from bitboard_gamestate_utils import attack_map_numba, is_check_numba
 
 
 @njit
@@ -174,3 +174,23 @@ def generate_all_moves(gs):
             + generate_queen_moves(gs, gs.black_queens, False)
             + generate_king_moves(gs, gs.black_king, False)
         )
+    
+# @njit
+# def generate_all_legal_moves(gs):
+#     if gs.white_to_move:
+#         all_moves = generate_pawn_moves(gs, gs.white_pawns, True) \
+#             + generate_knight_moves(gs, gs.white_knights, True) \
+#             + generate_bishop_moves(gs, gs.white_bishops, True) \
+#             + generate_rook_moves(gs, gs.white_rooks, True) \
+#             + generate_queen_moves(gs, gs.white_queens, True) \
+#             + generate_king_moves(gs, gs.white_king, True)
+#     else:
+#         all_moves = generate_pawn_moves(gs, gs.black_pawns, False) \
+#             + generate_knight_moves(gs, gs.black_knights, False) \
+#             + generate_bishop_moves(gs, gs.black_bishops, False) \
+#             + generate_rook_moves(gs, gs.black_rooks, False) \
+#             + generate_queen_moves(gs, gs.black_queens, False) \
+#             + generate_king_moves(gs, gs.black_king, False)
+    
+#     return all_moves
+    

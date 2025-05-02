@@ -1,16 +1,52 @@
 from bitboard_game import BitboardGameState
-from bitboard_gamestate_utils import attack_map_numba, apply_move_numba
+from bitboard_gamestate_utils import attack_map_numba, apply_move_numba, update_occupancies_numba, undo_move_numba
 from bitboard_nomagic import knight_attacks, king_attacks
 from bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
 from debugging import print_bitboard, print_board, get_standard_algebraic
 from constants import board_str
 from bitboard_utils import rank_mask, file_mask
-
+from numba import uint64, boolean
+from numba import types
+from numba.typed import List
 from generate_moves import *
+import warnings
+warnings.simplefilter("ignore")
 
 gs = BitboardGameState()
-apply_move_numba(gs, (11,27,0))
-print_board(gs)
+
+move_state_type = types.Tuple((
+    uint64, uint64, uint64, uint64, uint64, uint64,   # white pieces
+    uint64, uint64, uint64, uint64, uint64, uint64,   # black pieces
+    boolean,                                          # white_to_move
+    types.UniTuple(types.int8, 4),                    # castling_rights
+    types.int64,                                      # en_passant_target
+    types.int32,                                      # halfmove_clock
+    types.int32                                       # fullmove_number
+))
+
+n = 0
+move_info = List.empty_list(move_state_type)
+for mv1 in generate_all_moves(gs):
+    move = apply_move_numba(gs, mv1)
+    move_info.append(move)
+    update_occupancies_numba(gs)
+    gs.white_to_move = not gs.white_to_move
+    print("white_to_move:", gs.white_to_move)
+    all_d2_moves = generate_all_moves(gs)
+    if len(all_d2_moves) > 20:
+        print(mv1, "--> ")
+        for mv2 in all_d2_moves:
+            print(mv2, end=" ")
+        print()
+    for mv2 in all_d2_moves:
+        n += 1
+
+    undo_move_numba(gs, move_info)
+    update_occupancies_numba(gs)
+    gs.white_to_move = not gs.white_to_move
+
+print("Moves @ depth=2:", n)
+exit()
 
 empty = ~gs.occupied
 enemy = gs.black_occupancy if gs.white_to_move else gs.white_occupancy
@@ -26,6 +62,12 @@ else:
     double_push = ((single_push & rank_mask(5)) >> 8) & empty
     left_attacks = (pawns >> 9) & enemy & ~file_mask(7)
     right_attacks = (pawns >> 7) & enemy & ~file_mask(0)
+
+gs = BitboardGameState()
+all_moves = generate_all_moves(gs)
+for m in all_moves:
+    print(m)
+print("Num moves:", len(all_moves))
 
 
 print("Pawn moves bb:")

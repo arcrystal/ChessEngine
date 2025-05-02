@@ -32,7 +32,6 @@ def get_move_info(gs):
         uint64(gs.black_rooks),
         uint64(gs.black_queens),
         uint64(gs.black_king),
-        gs.white_to_move,
         (int8(gs.castling_rights[0]), int8(gs.castling_rights[1]), int8(gs.castling_rights[2]), int8(gs.castling_rights[3])),
         int32(gs.en_passant_target),
         int32(gs.halfmove_clock),
@@ -41,6 +40,7 @@ def get_move_info(gs):
 
 @njit
 def apply_move_numba(gs, move):
+    move_info = get_move_info(gs)
     from_sq, to_sq, promo = move
     mover_bb = uint64(1) << uint64(from_sq)
     to_bb = uint64(1) << uint64(to_sq)
@@ -94,14 +94,14 @@ def apply_move_numba(gs, move):
         gs.white_pawns, gs.white_knights, gs.white_bishops, \
         gs.white_rooks, gs.white_queens, gs.white_king = opp
 
-    return get_move_info(gs)
+    return move_info
 
 @njit
 def undo_move_numba(gs, move_info):
     (
         gs.white_pawns, gs.white_knights, gs.white_bishops, gs.white_rooks, gs.white_queens, gs.white_king,
         gs.black_pawns, gs.black_knights, gs.black_bishops, gs.black_rooks, gs.black_queens, gs.black_king,
-        gs.white_to_move, prev_castling_rights, gs.en_passant_target, gs.halfmove_clock, gs.fullmove_number
+        prev_castling_rights, gs.en_passant_target, gs.halfmove_clock, gs.fullmove_number
     ) = move_info.pop()
     for i in range(4):
         gs.castling_rights[i] = prev_castling_rights[i]
