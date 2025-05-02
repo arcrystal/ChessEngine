@@ -40,7 +40,7 @@ def print_board(gs, return_str=False):
     if return_str:
         return board_str
     
-def print_bitboard(self, bitboard: int, label: str = ""):
+def print_bitboard(bitboard: int, label: str = ""):
     if label:
         print(f"{label}")
     print("  +-----------------+")
@@ -54,18 +54,18 @@ def print_bitboard(self, bitboard: int, label: str = ""):
     print("  +-----------------+")
     print("    a b c d e f g h\n")
     
-def index_to_square(self, index):
+def index_to_square(index):
     """Convert a 0-63 index to a chessboard square in algebraic notation."""
     rank = (index // 8) + 1
     file = chr(index % 8 + ord('a'))
     return f"{file}{rank}"
     
-def get_standard_algebraic(self, move_or_loc):
+def get_standard_algebraic(move_or_loc):
     """Convert a list of moves from index notation to algebraic notation."""
     if isinstance(move_or_loc, tuple):
         from_sq, to_sq, promo = move_or_loc
-        from_square_algebraic = self.index_to_square(from_sq)
-        to_square_algebraic = self.index_to_square(to_sq)
+        from_square_algebraic = index_to_square(from_sq)
+        to_square_algebraic = index_to_square(to_sq)
         return f"{from_square_algebraic}{to_square_algebraic}"
     else:
-        return self.index_to_square(move_or_loc)
+        return index_to_square(move_or_loc)
