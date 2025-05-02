@@ -40,7 +40,7 @@ def _bitboard_perft(gs, depth, verbose, move_info):
         return 1
     
     nodes = 0
-    moves = generate_all_moves(gs, verbose)
+    moves = generate_all_moves(gs)
     for move in moves:
         state = apply_move_numba(gs, move)
         move_info.append(state)
