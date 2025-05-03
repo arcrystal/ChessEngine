@@ -13,6 +13,9 @@ import ast
 import chess
 from collections import defaultdict
 import tqdm
+from datetime import datetime, timedelta
+import logging
+import os
 
 
 import warnings
@@ -34,7 +37,7 @@ def _bitboard_perft(gs, depth, move_info):
         return 1
 
     nodes = 0
-    legal_move_found = False
+    #legal_move_found = False
     moves = generate_all_moves(gs)
     for move in moves:
         prev_state = apply_move_numba(gs, move)
@@ -42,7 +45,7 @@ def _bitboard_perft(gs, depth, move_info):
         gs.white_to_move = not gs.white_to_move
 
         if not is_check_numba(gs, not gs.white_to_move):  # check moving player's king
-            legal_move_found = True
+            #legal_move_found = True
             move_info.append(prev_state)
             nodes += _bitboard_perft(gs, depth - 1, move_info)
             undo_move_numba(gs, move_info)
@@ -52,8 +55,8 @@ def _bitboard_perft(gs, depth, move_info):
         update_occupancies_numba(gs)
         gs.white_to_move = not gs.white_to_move
 
-    if not legal_move_found and is_check_numba(gs, gs.white_to_move):
-        print("Checkmate!")
+    # if not legal_move_found and is_check_numba(gs, gs.white_to_move):
+    #     print("Checkmate!")
 
     return nodes
 
@@ -188,34 +191,52 @@ def diff_vs_python_chess(sequences):
     print(f"Total missing: {missing}")
 
 if __name__ == "__main__":
-    number_of_positions  = [1, 20, 400, 8902, 197281, 4865609, 119060324]
-    number_of_checkmates = [0, 0, 0, 8, 347, 10828]
+    os.makedirs("logs", exist_ok=True)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    logfile = f"logs/perft_{timestamp}.log"
+
+    logging.basicConfig(
+        filename=logfile,
+        filemode='w',
+        level=logging.INFO,
+        format="%(asctime)s - %(message)s"
+    )
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(message)s")
+    console.setFormatter(formatter)
+    logging.getLogger().addHandler(console)
+
+    number_of_positions  = [1, 20, 400, 8902, 197281, 4865609, 119060324, 3195901860, 84998978956, 2439530234167]
+    number_of_checkmates = [0, 0,  0,   0,    8,      347,     10828,     435767,     9852036,     400191963]
     gs = BitboardGameState()
     if len(sys.argv) > 1:
-        print("\nJitting methods...")
-        print("\nLogging and validating moves...")
+        logging.info("\nJitting methods...")
+        logging.info("\nLogging and validating moves...")
         depth = int(sys.argv[1])
         start = time.perf_counter()
         positions_reached = bitboard_perft_sequences(gs, depth)
         end = time.perf_counter()
         runtime = end-start
-        print(f"\n--- Depth {depth} ---")
-        print(f"Runtime     : {runtime:.6f}s")
-        print(f"Nodes count : {positions_reached}")
-        print(f"Anticipated : {number_of_positions[depth]}")
-        print(f"Nodes/second: {positions_reached/runtime:.2f}")
+        formatted_runtime = str(timedelta(seconds=runtime))
+
+        logging.info(f"\n------ Depth {depth} ------")
+        logging.info(f"Total Runtime        : {formatted_runtime}")
+        logging.info(f"Positions found      : {positions_reached}")
+        logging.info(f"Actual # positions   : {number_of_positions[depth]}")
+        logging.info(f"Nodes found / second : {positions_reached/runtime:.0f}")
     else:
-        for depth in range(7):
-            print()
+        for depth in range(10):
             start = time.perf_counter()
             positions_reached = bitboard_perft(gs, depth)
             end = time.perf_counter()
             runtime = end-start
-            print(f"--- Depth {depth} ---")
-            print(f"Perft Runtime : {runtime:.6f}s")
-            print(f"Nodes counted : {positions_reached}")
-            print(f"Actual number : {number_of_positions[depth]}")
-            print(f"Nodes/second  : {positions_reached/runtime:.2f}")
+            formatted_runtime = str(timedelta(seconds=runtime))
 
-    print()
+            logging.info(f"\n------ Depth {depth} ------")
+            logging.info(f"Total Runtime        : {formatted_runtime}")
+            logging.info(f"Positions found      : {positions_reached}")
+            logging.info(f"Actual # positions   : {number_of_positions[depth]}")
+            logging.info(f"Nodes found / second : {positions_reached/runtime:.0f}")
+
             
