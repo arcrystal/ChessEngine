@@ -30,3 +30,12 @@ def file_mask(file_idx):
 @njit
 def square_mask(sq: int) -> np.uint64:
     return uint64(1) << uint64(sq)
+
+def bb_to_squares(bb: int) -> list[int]:
+    squares = []
+    while bb:
+        lsb = bb & -bb
+        square = (lsb.bit_length() - 1)
+        squares.append(square)
+        bb &= bb - 1  # clear the LSB
+    return squares

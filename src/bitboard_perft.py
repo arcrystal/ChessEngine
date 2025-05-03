@@ -9,6 +9,8 @@ import time
 import sys
 import ast
 import chess
+from collections import defaultdict
+
 
 import warnings
 warnings.simplefilter('ignore', category=Warning, lineno=0, append=False)
@@ -31,8 +33,8 @@ def _bitboard_perft(gs, depth, move_info):
     # For move in moves at depth d:
     for move in generate_all_moves(gs):
         prev_state = apply_move_numba(gs, move)
-        # If move is valid: recurse
-        if not is_check_numba(gs, not gs.white_to_move):
+        # If move does not leave moving player in check: recurse
+        if not is_check_numba(gs, gs.white_to_move):
             update_occupancies_numba(gs)
             gs.white_to_move = not gs.white_to_move
             move_info.append(prev_state)
@@ -40,57 +42,54 @@ def _bitboard_perft(gs, depth, move_info):
             undo_move_numba(gs, move_info)
             update_occupancies_numba(gs)
             gs.white_to_move = not gs.white_to_move
-
-    return nodes
-
-def _bitboard_perft_sequences(gs, depth, sequence, outfile, move_info):
-    # If reached base case, log the sequence of moves to reach this leaf
-    if depth == 0:
-        outfile.write(str(sequence)+"\n")
-        return 1
-
-    nodes = 0
-    # For move in moves at depth d:
-    for move in generate_all_moves(gs):
-        prev_state = apply_move_numba(gs, move)
-        # If move is valid: recurse
-        if not is_check_numba(gs, not gs.white_to_move):
-            update_occupancies_numba(gs)
-            gs.white_to_move = not gs.white_to_move
-            move_info.append(prev_state)
-            sequence.append(move)
-            nodes += _bitboard_perft_sequences(gs, depth-1, sequence, outfile, move_info)
-            sequence.pop()
-            undo_move_numba(gs, move_info)
-            update_occupancies_numba(gs)
-            gs.white_to_move = not gs.white_to_move
+        else:
+            undo_move_numba(gs, prev_state)
 
     return nodes
 
 @njit
+def _bitboard_perft_sequences(gs, depth, sequence, move_info, result_sequences):
+    if depth == 0:
+        result_sequences.append(sequence[:])
+        return 1
+
+    nodes = 0
+    for move in generate_all_moves(gs):
+        prev_state = apply_move_numba(gs, move)
+        if not is_check_numba(gs, gs.white_to_move):
+            update_occupancies_numba(gs)
+            gs.white_to_move = not gs.white_to_move
+            move_info.append(prev_state)
+            sequence.append(move)
+            nodes += _bitboard_perft_sequences(gs, depth-1, sequence, move_info, result_sequences)
+            sequence.pop()
+            undo_move_numba(gs, move_info)
+            update_occupancies_numba(gs)
+            gs.white_to_move = not gs.white_to_move
+        else:
+            undo_move_numba(gs, prev_state)
+    return nodes
+
 def bitboard_perft(gs, depth):
     move_info = List.empty_list(move_state_type)
     return _bitboard_perft(gs, depth, move_info)
 
-def bitboard_perft_sequences(gs, depth, outfile):
+def bitboard_perft_sequences(gs, depth):
     move_info = List.empty_list(move_state_type)
-    sequence = []
-    return _bitboard_perft_sequences(gs, depth, sequence, outfile, move_info)
+    sequence = List.empty_list(types.UniTuple(types.int64, 3))  # assuming move = (from_sq, to_sq)
+    result_sequences = List.empty_list(types.ListType(types.UniTuple(types.int64, 3)))
+    _bitboard_perft_sequences(gs, depth, sequence, move_info, result_sequences)
+    validate(result_sequences)
+    return len(result_sequences)
 
 def parse_tuple_list(s: str):
     return ast.literal_eval(s)
 
-import chess
-
-def validate(depth: int):
-    with open(f"logs/moves_depth{depth}.txt", "r") as f:
-        sequences = [parse_tuple_list(line) for line in f.readlines()]
-        
+def validate(sequences):
     invalid_moves = 0
     missing_moves = 0
 
     # Organize sequences by their prefix of length `d`
-    from collections import defaultdict
     prefix_map = defaultdict(list)
     for seq in sequences:
         for d in range(len(seq)):
@@ -109,7 +108,10 @@ def validate(depth: int):
         # Check for invalid moves (logged but illegal)
         for move in logged:
             if move not in legal:
-                print(f"{invalid_moves+1}. {prefix} --> {move}")
+                prefix_str = "("
+                for p in prefix:
+                    prefix_str += get_standard_algebraic(p) + ", "
+                print(f"{invalid_moves+1}. {prefix_str[:-2]}) --> {move} - invalid")
                 invalid_moves += 1
 
         # Check for missing legal moves (legal but not logged)
@@ -118,7 +120,7 @@ def validate(depth: int):
                 prefix_str = "("
                 for p in prefix:
                     prefix_str += get_standard_algebraic(p) + ", "
-                print(f"{missing_moves+1}. {prefix_str[:-2]}) --> ({move})")
+                print(f"{missing_moves+1}. {prefix_str[:-2]}) --> ({move}) - missing")
                 missing_moves += 1
 
     print(f"{invalid_moves} invalid moves")
@@ -129,25 +131,35 @@ def validate(depth: int):
 
     
 if __name__ == "__main__":
-    correct_nodes = [1, 20, 400, 8902, 197281, 4865609]
+    number_of_positions  = [1, 20, 400, 8902, 197281, 4865609, 119060324]
+    number_of_checkmates = [0, 0, 0, 8, 347, 10828]
     gs = BitboardGameState()
     if len(sys.argv) > 1:
-        print("Logging and validating moves...")
+        print("\nJitting methods...")
+        bitboard_perft(gs, 1)
+        print("\nLogging and validating moves...")
         depth = int(sys.argv[1])
-        with open(f"logs/moves_depth{depth}.txt", "w") as f:
-            print()
-            start = time.perf_counter()
-            res = bitboard_perft_sequences(gs, depth, f)
-            end = time.perf_counter()
-            print(f"Depth {depth}\nExecuted in {(end-start):.6f}\nNodes count: {res}\nAnticipated: {correct_nodes[depth]}")
-            validate(depth)
+        start = time.perf_counter()
+        positions_reached = bitboard_perft_sequences(gs, depth)
+        end = time.perf_counter()
+        runtime = end-start
+        print(f"\n--- Depth {depth} ---")
+        print(f"Runtime     : {runtime:.6f}s")
+        print(f"Nodes count : {positions_reached}")
+        print(f"Anticipated : {number_of_positions[depth]}")
+        print(f"Nodes/second: {positions_reached/runtime:.2f}")
     else:
-        for depth in range(6):
+        for depth in range(7):
             print()
             start = time.perf_counter()
-            res = bitboard_perft(gs, depth)
+            positions_reached = bitboard_perft(gs, depth)
             end = time.perf_counter()
-            print(f"Depth {depth}\nExecuted in {(end-start):.6f}\nNodes count: {res}\nAnticipated: {correct_nodes[depth]}")
+            runtime = end-start
+            print(f"--- Depth {depth} ---")
+            print(f"Runtime     : {runtime:.6f}s")
+            print(f"Nodes count : {positions_reached}")
+            print(f"Anticipated : {number_of_positions[depth]}")
+            print(f"Nodes/second: {positions_reached/runtime:.2f}")
 
     print()
             

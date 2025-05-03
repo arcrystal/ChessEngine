@@ -2,7 +2,8 @@ import numpy as np
 from numba import uint64, njit
 from bitboard_nomagic import pawn_attacks, king_attacks, knight_attacks
 from bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
-from numba import int8, int32
+from numba import int8, int32, types
+from numba.typed import List
 from bitboard_utils import pop_lsb
 
 @njit
@@ -103,13 +104,17 @@ def apply_move_numba(gs, move):
 
 @njit
 def undo_move_numba(gs, move_info):
+    """
+    Pops a move off the move stack or resets the position to the given state. Does NOT update white_to_move or occupancy
+    """
     (
         gs.white_pawns, gs.white_knights, gs.white_bishops, gs.white_rooks, gs.white_queens, gs.white_king,
         gs.black_pawns, gs.black_knights, gs.black_bishops, gs.black_rooks, gs.black_queens, gs.black_king,
         prev_castling_rights, gs.en_passant_target, gs.halfmove_clock, gs.fullmove_number
-    ) = move_info.pop()
+    ) = move_info.pop() if isinstance(move_info, List) else move_info
     for i in range(4):
         gs.castling_rights[i] = prev_castling_rights[i]
+    
     
 @njit
 def is_check_numba(gs, white_to_move: bool) -> bool:
