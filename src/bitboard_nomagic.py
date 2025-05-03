@@ -1,6 +1,6 @@
 import numpy as np
 from numba import njit, uint64
-from bitboard_utils import square_mask
+from src.bitboard_utils import square_mask
 
 KNIGHT_ATTACKS = np.zeros(64, dtype=np.uint64)
 KING_ATTACKS = np.zeros(64, dtype=np.uint64)

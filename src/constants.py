@@ -1,4 +1,4 @@
-from numba import types
+from numba import types, uint64
 from numba.typed import List
 
 PAWN = 1
@@ -56,7 +56,17 @@ for seq in [
     (g2g4, e7e6, f2f3),
     (g2g4, e7e6, f2f4),
     (g2g4, e7e5, f2f3),
-    (g2g4, e7e5, f2f4),
-]:
+    (g2g4, e7e5, f2f4)]:
     move4_mates.append(make_sequence(*seq))
 
+move_state_type = types.Tuple((
+    uint64, uint64, uint64, uint64, uint64, uint64,   # white pieces
+    uint64, uint64, uint64, uint64, uint64, uint64,   # black pieces
+    types.UniTuple(types.int8, 4),                    # castling_rights
+    types.int64,                                      # en_passant_target
+    types.int32,                                      # halfmove_clock
+    types.int32                                       # fullmove_number
+))
+
+number_of_positions  = [1, 20, 400, 8902, 197281, 4865609, 119060324, 3195901860, 84998978956, 2439530234167]
+number_of_checkmates = [0, 0,  0,   0,    8,      347,     10828,     435767,     9852036,     400191963]

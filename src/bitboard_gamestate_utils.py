@@ -1,10 +1,10 @@
 import numpy as np
 from numba import uint64, njit
-from bitboard_nomagic import pawn_attacks, king_attacks, knight_attacks
-from bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
+from src.bitboard_nomagic import pawn_attacks, king_attacks, knight_attacks
+from src.bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
 from numba import int8, int32
 from numba.typed import List
-from bitboard_utils import pop_lsb
+from src.bitboard_utils import pop_lsb
 
 @njit
 def update_occupancies_numba(gs):
@@ -17,32 +17,6 @@ def update_occupancies_numba(gs):
         gs.black_rooks | gs.black_queens | gs.black_king
     )
     gs.occupied = gs.white_occupancy | gs.black_occupancy
-
-@njit
-def get_move_info(gs):
-    return (
-        uint64(gs.white_pawns),
-        uint64(gs.white_knights),
-        uint64(gs.white_bishops),
-        uint64(gs.white_rooks),
-        uint64(gs.white_queens),
-        uint64(gs.white_king),
-        uint64(gs.black_pawns),
-        uint64(gs.black_knights),
-        uint64(gs.black_bishops),
-        uint64(gs.black_rooks),
-        uint64(gs.black_queens),
-        uint64(gs.black_king),
-        (
-            int8(gs.castling_rights[0]),
-            int8(gs.castling_rights[1]),
-            int8(gs.castling_rights[2]),
-            int8(gs.castling_rights[3])
-        ),
-        int32(gs.en_passant_target),
-        int32(gs.halfmove_clock),
-        int32(gs.fullmove_number)
-    ) 
 
 @njit
 def apply_move_numba(gs, move):
@@ -101,6 +75,32 @@ def apply_move_numba(gs, move):
         gs.white_rooks, gs.white_queens, gs.white_king = opp
 
     return move_info
+
+@njit
+def get_move_info(gs):
+    return (
+        uint64(gs.white_pawns),
+        uint64(gs.white_knights),
+        uint64(gs.white_bishops),
+        uint64(gs.white_rooks),
+        uint64(gs.white_queens),
+        uint64(gs.white_king),
+        uint64(gs.black_pawns),
+        uint64(gs.black_knights),
+        uint64(gs.black_bishops),
+        uint64(gs.black_rooks),
+        uint64(gs.black_queens),
+        uint64(gs.black_king),
+        (
+            int8(gs.castling_rights[0]),
+            int8(gs.castling_rights[1]),
+            int8(gs.castling_rights[2]),
+            int8(gs.castling_rights[3])
+        ),
+        int32(gs.en_passant_target),
+        int32(gs.halfmove_clock),
+        int32(gs.fullmove_number)
+    ) 
 
 @njit
 def undo_move_numba(gs, move_info):

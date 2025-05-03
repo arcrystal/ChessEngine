@@ -1,14 +1,14 @@
-from bitboard_game import BitboardGameState
-from bitboard_gamestate_utils import attack_map_numba, apply_move_numba, update_occupancies_numba, undo_move_numba
-from bitboard_nomagic import knight_attacks, king_attacks
-from bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
-from bitboard_debugging import print_bitboard, get_standard_algebraic, print_board
-from constants import board_str
-from bitboard_utils import rank_mask, file_mask, bb_to_squares
+from src.bitboard_game import BitboardGameState
+from src.bitboard_gamestate_utils import attack_map_numba, apply_move_numba, update_occupancies_numba, undo_move_numba
+from src.bitboard_nomagic import knight_attacks, king_attacks
+from src.bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
+from src.bitboard_debugging import print_bitboard, get_standard_algebraic, print_board
+from src.constants import board_str
+from src.bitboard_utils import rank_mask, file_mask, bb_to_squares
 from numba import uint64, boolean
 from numba import types
 from numba.typed import List
-from generate_moves import *
+from src.generate_moves import *
 import warnings
 warnings.simplefilter("ignore")
 

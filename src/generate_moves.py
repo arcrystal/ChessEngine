@@ -1,10 +1,10 @@
 from numba import njit, uint64
 
-from bitboard_nomagic import knight_attacks, king_attacks
-from bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
-from constants import KNIGHT, BISHOP, ROOK, QUEEN
-from bitboard_utils import pop_lsb, rank_mask, file_mask
-from bitboard_gamestate_utils import attack_map_numba, is_check_numba
+from src.bitboard_nomagic import knight_attacks, king_attacks
+from src.bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
+from src.constants import KNIGHT, BISHOP, ROOK, QUEEN
+from src.bitboard_utils import pop_lsb, rank_mask, file_mask
+from src.bitboard_gamestate_utils import attack_map_numba, is_check_numba
 
 
 @njit
