@@ -1,3 +1,6 @@
+from numba import types
+from numba.typed import List
+
 PAWN = 1
 KNIGHT = 2
 BISHOP = 3
@@ -26,3 +29,34 @@ board_str = """
   +-------------------------+
     a  b  c  d  e  f  g  h
 """
+# Define move triples
+f2f3 = (13, 21, 0)
+f2f4 = (13, 29, 0)
+g2g3 = (14, 22, 0)
+g2g4 = (14, 30, 0)
+e7e5 = (51, 35, 0)
+e7e6 = (51, 43, 0)
+d8h4 = (59, 31, 0)
+
+# Helper to create Numba list from Python tuple of 3 moves
+def make_sequence(a, b, c):
+    l = List.empty_list(types.UniTuple(types.int64, 3))
+    l.append(a)
+    l.append(b)
+    l.append(c)
+    return l
+
+# Compose test mates
+move4_mates = List.empty_list(types.ListType(types.UniTuple(types.int64, 3)))
+for seq in [
+    (f2f3, e7e6, g2g4),
+    (f2f3, e7e5, g2g4),
+    (f2f4, e7e6, g2g4),
+    (f2f4, e7e5, g2g4),
+    (g2g4, e7e6, f2f3),
+    (g2g4, e7e6, f2f4),
+    (g2g4, e7e5, f2f3),
+    (g2g4, e7e5, f2f4),
+]:
+    move4_mates.append(make_sequence(*seq))
+

@@ -2,7 +2,7 @@ import numpy as np
 from numba import uint64, njit
 from bitboard_nomagic import pawn_attacks, king_attacks, knight_attacks
 from bitboard_magic import bishop_attacks, rook_attacks, queen_attacks
-from numba import int8, int32, types
+from numba import int8, int32
 from numba.typed import List
 from bitboard_utils import pop_lsb
 

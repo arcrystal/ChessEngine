@@ -44,7 +44,6 @@ for mv1 in generate_all_moves(gs):
         update_occupancies_numba(gs)
         gs.white_to_move = not gs.white_to_move
 
-
     undo_move_numba(gs, move_info)
     update_occupancies_numba(gs)
     gs.white_to_move = not gs.white_to_move
